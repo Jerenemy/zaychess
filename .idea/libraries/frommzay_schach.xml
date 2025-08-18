@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="frommzay_schach">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/frommzay_schach.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

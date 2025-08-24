@@ -6,6 +6,8 @@ import com.frommzay.chess.model.pieces.Piece;
 import com.frommzay.chess.model.rules.GameOverType;
 import com.frommzay.chess.model.util.PlayerColor;
 import com.frommzay.chess.model.util.Position;
+import com.frommzay.chess.services.infrastructure.engine.EngineService;
+import com.frommzay.chess.services.infrastructure.engine.SerendipityEngineService;
 import com.frommzay.chess.view.gui.*;
 import com.frommzay.chess.services.infrastructure.network.MoveCodec;
 import com.frommzay.chess.services.infrastructure.network.MoveMessage;
@@ -49,33 +51,47 @@ public class GameController implements NetworkTransport.Listener {
 	private PlayerColor localSide = null; 
 	private Position highlightedSquare = null;
 	private Position selectedPosition = null;
-  
+
 	// ──────────────────────────────────────────────────────────────────────────────
     // Constructors
     // ──────────────────────────────────────────────────────────────────────────────
 	
+    private final EngineService engine;
 	/**
      * Create a controller with in-memory move history and no network.
      *
      * @param gameState the mutable game state this controller operates on
      */
-	public GameController(GameState gameState) {
+	public GameController(GameState gameState) throws Exception {
 		this(gameState, new MoveHistoryInMemory());
 	}
-  
 	/**
      * Create a controller with a supplied history service (for custom undo/redo storage).
      *
      * @param gameState the mutable game state this controller operates on
      * @param history   the history service used for recording, undoing, and redoing moves
      */
-	public GameController(GameState gameState, MoveHistoryService history) {
-		this.gameState = gameState;
-		this.history = history;
-	}
+    public GameController(GameState gameState, MoveHistoryService history) throws Exception {
+        this(gameState, history, false);
+    }
 
-  
-	// ──────────────────────────────────────────────────────────────────────────────
+    public GameController(GameState gameState,
+                          MoveHistoryService history,
+                          boolean useEngine) throws Exception {
+        this.history = Objects.requireNonNullElseGet(history, MoveHistoryInMemory::new);
+        this.gameState = gameState;
+        if (useEngine) {
+            this.engine = new SerendipityEngineService("java",
+//                    "/Users/jeremyzay/Desktop/intellij/chess/ptp25-mi05-chess-jeremy/Chess/src/com/frommzay/chess/services/infrastructure/engine/Serendipity.jar");
+                    "Chess/src/com/frommzay/chess/services/infrastructure/engine/Serendipity.jar");
+            this.engine.start();
+        }
+        else this.engine = null;
+    }
+
+
+
+    // ──────────────────────────────────────────────────────────────────────────────
     // Trivial setters/getters 
     // ──────────────────────────────────────────────────────────────────────────────
 	public void setLocalSide(PlayerColor side) { this.localSide = side; }
@@ -372,7 +388,14 @@ public class GameController implements NetworkTransport.Listener {
 	        if (choice == null) return; // user cancelled
 	        m = m.withPromotion(choice);
 	    }
-	    applyMoveAndNotify(m, /*broadcast*/ true);
+//        ai
+        if (engine != null && !isOnline()) {
+            try { engine.pushUserMove(toUci(m)); } catch (Exception ignored) {}
+        }
+        applyMoveAndNotify(m, /*broadcast*/ true);
+        maybeEngineRespond();
+
+//	    applyMoveAndNotify(m, /*broadcast*/ true);
 	}
  	
  	/**
@@ -527,5 +550,96 @@ public class GameController implements NetworkTransport.Listener {
 	    );
 	    return MoveCodec.encode(msg); 
 	}
+
+    // ──────────────────────────────────────────────────────────────────────────────
+    // AI
+    // ──────────────────────────────────────────────────────────────────────────────
+
+    // --- fields
+    private volatile boolean engineThinking = false;
+
+    // Call from MainMenuFrame after launching board
+    public void startEngineGame(PlayerColor you) {
+        setLocalSide(you);
+        try { if (engine != null) engine.newGame(); } catch (Exception ignored) {}
+        if (engine != null && gameState.getTurn() != you) engineMoveAsync();
+    }
+
+    // If it’s the engine’s turn, let it move (off the EDT)
+    private void maybeEngineRespond() {
+        if (engine == null) return;
+        if (localSide == null) return;       // not an AI game
+        if (isOnline()) return;              // AI not for network games
+        if (gameState.getTurn() != localSide) engineMoveAsync();
+    }
+
+    private void engineMoveAsync() {
+        if (engine == null || engineThinking) return;
+        engineThinking = true;
+        new Thread(() -> {
+            try {
+                String uci = engine.bestMoveMs(1500);        // ~1.5s thinking
+                Move em = decodeUci(uci);
+                if (em != null) {
+                    // keep engine’s internal move history in sync
+                    engine.pushUserMove(uci);
+                    SwingUtilities.invokeLater(() -> applyMoveAndNotify(em, false));
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                engineThinking = false;
+                SwingUtilities.invokeLater(this::maybeEngineRespond);
+            }
+        }, "engine-move").start();
+    }
+
+    // --- convert between your Position/Move and UCI
+    private static final boolean RANK0_IS_BOTTOM = false; // set false if (0,0)==a8
+
+    private String toUci(Move m) {
+        String s = sq(m.getFromPos()) + sq(m.getToPos());
+        if (m.getMoveType() == MoveType.PROMOTION && m.getPromotion() != null) {
+            s += switch (m.getPromotion()) {
+                case QUEEN -> "q"; case ROOK -> "r"; case BISHOP -> "b"; case KNIGHT -> "n";
+            };
+        }
+        return s;
+    }
+    private String sq(Position p) {
+        int f = p.getFile(), r = p.getRank();
+        char file = (char) ('a' + f);
+        int rank = RANK0_IS_BOTTOM ? (r + 1) : (8 - r);
+        return "" + file + rank;
+    }
+    private Position parseSquare(String s) {
+        int file = s.charAt(0) - 'a';
+        int rank = s.charAt(1) - '1';
+        if (!RANK0_IS_BOTTOM) rank = 7 - rank;
+        return new Position(rank, file);
+    }
+    private Move decodeUci(String uci) {
+        if (uci == null || uci.length() < 4) return null;
+        Position from = parseSquare(uci.substring(0,2));
+        Position to   = parseSquare(uci.substring(2,4));
+        PromotionPiece promo = null;
+        if (uci.length() >= 5) {
+            promo = switch (Character.toLowerCase(uci.charAt(4))) {
+                case 'q' -> PromotionPiece.QUEEN;
+                case 'r' -> PromotionPiece.ROOK;
+                case 'b' -> PromotionPiece.BISHOP;
+                case 'n' -> PromotionPiece.KNIGHT;
+                default -> null;
+            };
+        }
+        Move legal = MoveGenerator.getValidMoveInTurn(gameState, from, to);
+        if (legal == null) return null;
+        if (promo != null && legal.getMoveType() == MoveType.PROMOTION) {
+            legal = legal.withPromotion(promo);
+        }
+        return legal;
+    }
+
+
 
 }

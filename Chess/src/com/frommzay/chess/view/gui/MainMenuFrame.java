@@ -22,9 +22,17 @@ public class MainMenuFrame extends JFrame {
 	private static final long serialVersionUID = 4115239067261707835L;
 
 	private final GameState gameState = new GameState();
-	private final GameController controller = new GameController(gameState);
+	private final GameController controller;
 
-	public MainMenuFrame() {
+    {
+        try {
+            controller = new GameController(gameState, null,true);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public MainMenuFrame() {
 		setTitle("Schach – Launcher");
 		setDefaultCloseOperation(EXIT_ON_CLOSE);
 		setLayout(new BorderLayout());
@@ -107,7 +115,28 @@ public class MainMenuFrame extends JFrame {
 		}).start();
 	}
 
-	/** Helper: waiting dialog with spinner while hosting. */
+    // in MainMenuFrame
+    public void startVsComputer() {
+        Object[] options = {"Play White", "Play Black", "Cancel"};
+        int choice = JOptionPane.showOptionDialog(
+                this, "Choose your side", "Play vs Computer",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
+                null, options, options[0]
+        );
+        if (choice == 2 || choice == JOptionPane.CLOSED_OPTION) return;
+
+        com.frommzay.chess.model.util.PlayerColor you =
+                (choice == 0) ? com.frommzay.chess.model.util.PlayerColor.WHITE
+                        : com.frommzay.chess.model.util.PlayerColor.BLACK;
+
+        GameLauncher.launch(gameState, controller);
+        controller.startEngineGame(you);          // NEW (see below)
+        ChessFrame.getMoveListPanel().clearMoves();
+        dispose();
+    }
+
+
+    /** Helper: waiting dialog with spinner while hosting. */
 	private JDialog openWaitingDialog() {
 		JDialog dialog = new JDialog(this, "Warte auf Gegner...", false);
 		JProgressBar progressBar = new JProgressBar();

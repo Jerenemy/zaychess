@@ -1,0 +1,3 @@
+Includes Serendipity chess engine
+Copyright (c) 2024-2025 The Serendipity contributors
+Licensed under the GNU Affero General Public License v3.0

@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 
 import com.frommzay.chess.model.game.GameState;
-import com.frommzay.chess.model.pieces.*;
 import com.frommzay.chess.model.util.PlayerColor;
 import com.frommzay.chess.model.util.Position;
 

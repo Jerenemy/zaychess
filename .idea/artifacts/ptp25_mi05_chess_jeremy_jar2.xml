@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="ptp25-mi05-chess-jeremy:jar2">
+    <output-path>$PROJECT_DIR$/out/artifacts/ptp25_mi05_chess_jeremy_jar2</output-path>
+    <root id="archive" name="ptp25-mi05-chess-jeremy.jar">
+      <element id="module-output" name="ptp25-mi05-chess-jeremy" />
+    </root>
+  </artifact>
+</component>

@@ -1,0 +1,11 @@
+This app bundles the Serendipity chess engine (prebuilt JAR, unmodified).
+
+Upstream source (exact):
+https://github.com/xu-shawn/Serendipity/tree/v1.0
+Commit: 3766750998b922efe10c4335c3469b0c098019ac
+
+Source archive (exact):
+Mirror: https://jeremyzay.com/zaychess/source/serendipity-v1.0.zip
+
+SHA-256 of bundled JAR:
+8403f3ff374f3667a3c8972d73d99b37683ab57c6274b770b64a6f2026090430

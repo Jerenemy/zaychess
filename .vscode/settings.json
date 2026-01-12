@@ -1,0 +1,17 @@
+{
+  "java.project.sourcePaths": [
+    "Chess/src"
+  ],
+  "java.project.outputPath": "bin",
+  "java.project.referencedLibraries": [
+    "Chess/engines/*.jar"
+  ],
+  "java.debug.settings.vmArgs": "--add-modules=jdk.incubator.vector",
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-21",
+      "path": "/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home",
+      "default": true
+    }
+  ]
+}

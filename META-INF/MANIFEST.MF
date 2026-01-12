@@ -1,0 +1,7 @@
+Manifest-Version: 1.0
+Created-By: Apache Maven 3.9.11
+Built-By: jeremyzay
+Build-Jdk: 24.0.2
+Class-Path: lib/commons-lang3-3.17.0.jar
+Main-Class: org.shawn.games.Serendipity.UCI.UCI
+

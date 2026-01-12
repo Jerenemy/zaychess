@@ -19,6 +19,7 @@ import com.jeremyzay.zaychess.services.infrastructure.network.MoveMessage;
 import com.jeremyzay.zaychess.services.infrastructure.network.NetworkTransport;
 import com.jeremyzay.zaychess.services.application.history.MoveHistoryInMemory;
 import com.jeremyzay.zaychess.services.application.history.MoveHistoryService;
+import com.jeremyzay.zaychess.services.application.notation.NotationFEN;
 import com.jeremyzay.zaychess.services.application.notation.NotationSAN;
 import com.jeremyzay.zaychess.view.gui.BoardPanel;
 import com.jeremyzay.zaychess.view.gui.ChessFrame;
@@ -27,9 +28,6 @@ import com.jeremyzay.zaychess.view.gui.PromotionDialog;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import java.awt.Color;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -107,14 +105,20 @@ public class GameController implements NetworkTransport.Listener {
     public boolean isUsingEngine() { return this.engine != null; }
 
     public void setEngine() {
-        Path engineJar = appHome().resolve("engines").resolve("Serendipity.jar");
-        this.engine = new SerendipityEngineService(javaCmd(), engineJar.toString());
-//        System.out.println(engineJar.toString());
-//        System.out.println(engineJar.toAbsolutePath().toString());
+        this.engine = new SerendipityEngineService();
         try {
             this.engine.start();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } catch (Throwable e) {
+            if (e instanceof VirtualMachineError) throw (VirtualMachineError) e;
+            this.engine = null;
+            JOptionPane.showMessageDialog(null,
+                    "Failed to start Serendipity engine.\n"
+                            + rootCauseMessage(e)
+                            + "\n\nMake sure Serendipity.jar is on the classpath, located at "
+                            + "Chess/engines/Serendipity.jar, or pass -Dserendipity.jar=/path/to/Serendipity.jar, "
+                            + "and run the app with --add-modules=jdk.incubator.vector.",
+                    "Engine Error",
+                    JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -186,6 +190,12 @@ public class GameController implements NetworkTransport.Listener {
 	   // online: only allow clicks on your turn
 	   if (isOnline() && localSide != null && gameState.getTurn() != localSide) {
 	       ChessFrame.getStatusPanel().setStatus("Not your turn", Color.GRAY);
+	       return;
+	   }
+
+	   // AI: block input while the engine is to move
+	   if (!isOnline() && engine != null && localSide != null && gameState.getTurn() != localSide) {
+	       ChessFrame.getStatusPanel().setStatus("Engine thinking...", Color.GRAY);
 	       return;
 	   }
 	   selectOrMovePiece(pos);
@@ -402,9 +412,6 @@ public class GameController implements NetworkTransport.Listener {
 	        m = m.withPromotion(choice);
 	    }
 //        ai
-        if (engine != null && !isOnline()) {
-            try { engine.pushUserMove(toUci(m)); } catch (Exception ignored) {}
-        }
         applyMoveAndNotify(m, /*broadcast*/ true);
         maybeEngineRespond();
 
@@ -591,11 +598,11 @@ public class GameController implements NetworkTransport.Listener {
         engineThinking = true;
         new Thread(() -> {
             try {
+                GameState snap = gameState.snapshot();
+                engine.setPositionFEN(NotationFEN.toFEN(snap));
                 String uci = engine.bestMoveMs(1500);        // ~1.5s thinking
                 Move em = decodeUci(uci);
                 if (em != null) {
-                    // keep engine’s internal move history in sync
-                    engine.pushUserMove(uci);
                     SwingUtilities.invokeLater(() -> applyMoveAndNotify(em, false));
                 }
             } catch (Exception e) {
@@ -607,18 +614,8 @@ public class GameController implements NetworkTransport.Listener {
         }, "engine-move").start();
     }
 
-    // --- convert between your Position/Move and UCI
+    // --- convert between your Position and UCI
     private static final boolean RANK0_IS_BOTTOM = false; // set false if (0,0)==a8
-
-    private String toUci(Move m) {
-        String s = sq(m.getFromPos()) + sq(m.getToPos());
-        if (m.getMoveType() == MoveType.PROMOTION && m.getPromotion() != null) {
-            s += switch (m.getPromotion()) {
-                case QUEEN -> "q"; case ROOK -> "r"; case BISHOP -> "b"; case KNIGHT -> "n";
-            };
-        }
-        return s;
-    }
     private String sq(Position p) {
         int f = p.getFile(), r = p.getRank();
         char file = (char) ('a' + f);
@@ -659,25 +656,11 @@ public class GameController implements NetworkTransport.Listener {
     //        boolean win = System.getProperty("os.name").toLowerCase().contains("win");
     //        return java.nio.file.Paths.get(System.getProperty("java.home"), "bin", win ? "java.exe" : "java").toString();
     //    }
-    static String javaCmd() {
-        // For Mac App Store, just use system java
-        if (System.getProperty("os.name").toLowerCase().contains("mac")) {
-            return "java"; // Uses system java from PATH
-        }
-
-        // For other platforms, use bundled runtime
-        boolean win = System.getProperty("os.name").toLowerCase().contains("win");
-        return Paths.get(System.getProperty("java.home"), "bin", win ? "java.exe" : "java").toString();
-    }
-
-    static Path appHome() {
-        try {
-            Path loc = Paths.get(
-                    GameController.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-            return Files.isRegularFile(loc) ? loc.getParent() : loc; // jar vs classes dir
-        } catch (Exception e) {
-            return Paths.get(System.getProperty("user.dir"));
-        }
+    private static String rootCauseMessage(Throwable t) {
+        Throwable cur = t;
+        while (cur.getCause() != null) cur = cur.getCause();
+        String msg = cur.getMessage();
+        return (msg == null || msg.isBlank()) ? cur.toString() : msg;
     }
 
 

@@ -232,6 +232,13 @@ public class SpecialMoveHandler {
         );
     }
 
+    public boolean hasWhiteKingMoved() { return whiteKingMoved; }
+    public boolean hasBlackKingMoved() { return blackKingMoved; }
+    public boolean hasWhiteKingsideRookMoved() { return whiteKingsideRookMoved; }
+    public boolean hasWhiteQueensideRookMoved() { return whiteQueensideRookMoved; }
+    public boolean hasBlackKingsideRookMoved() { return blackKingsideRookMoved; }
+    public boolean hasBlackQueensideRookMoved() { return blackQueensideRookMoved; }
+
     /**
      * Updates has-moved flags after a move is applied.
      *

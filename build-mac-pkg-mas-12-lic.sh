@@ -1,6 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# build jar
+# from repo root
+rm -rf out/
+mkdir -p out/classes out/artifacts
+
+find Chess/src -name "*.java" > /tmp/sources.txt
+javac -d out/classes @/tmp/sources.txt
+
+# copy resources into the class output
+rsync -a Chess/src/com/jeremyzay/zaychess/view/assets \
+  out/classes/com/jeremyzay/zaychess/view/
+
+# build the app jar with the correct Main-Class
+jar --create \
+  --file out/artifacts/Zaychess.jar \
+  --manifest Chess/src/META-INF/MANIFEST.MF \
+  -C out/classes .
+
+rm -rf dist
+
+
+
 # resolve paths relative to this script
 SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
@@ -9,6 +31,7 @@ MAIN_CLASS="com.jeremyzay.zaychess.App"
 ARTIFACTS_DIR="$SCRIPT_DIR/out/artifacts"
 DEST="$SCRIPT_DIR/dist"
 STAGE="$SCRIPT_DIR/build/macos-resources"
+INPUT_DIR="$SCRIPT_DIR/build/jpackage-input"
 
 APP="$DEST/$APPNAME.app"
 SIGN_ID="5C8AF79D5FA7AE13418BDE021625DFF59019AAA8"
@@ -68,6 +91,12 @@ fi
 xattr -d com.apple.quarantine "$ENGINE_SRC" 2>/dev/null || true
 cp "$ENGINE_SRC" "$STAGE/engines/Serendipity.jar"
 
+# 2b) stage jpackage input (main app jar + engine jar)
+rm -rf "$INPUT_DIR"
+mkdir -p "$INPUT_DIR/engines"
+cp -f "$JAR_PATH" "$INPUT_DIR/$MAIN_JAR"
+cp -f "$ENGINE_SRC" "$INPUT_DIR/engines/Serendipity.jar"
+
 # 3) Create a stripped runtime image for Mac App Store
 CUSTOM_RUNTIME="$SCRIPT_DIR/build/custom-runtime"
 echo "Creating stripped runtime image for Mac App Store..."
@@ -77,7 +106,7 @@ rm -rf "$CUSTOM_RUNTIME"
 
 # Create custom runtime with jlink (strips bin folder and native commands)
 "$JAVA_HOME/bin/jlink" \
-  --add-modules java.base,java.desktop,java.logging,java.xml,java.naming,java.security.jgss,java.instrument,java.management,java.prefs \
+  --add-modules java.base,java.desktop,java.logging,java.xml,java.naming,java.security.jgss,java.instrument,java.management,java.prefs,jdk.incubator.vector \
   --strip-native-commands \
   --no-man-pages \
   --no-header-files \
@@ -90,9 +119,9 @@ echo "✅ Custom runtime created at: $CUSTOM_RUNTIME"
 jpackage \
   --type app-image \
   --name "$APPNAME" \
-  --app-version "1.0.6" \
+  --app-version "1.0.7" \
   --mac-app-category games \
-  --input "$JAR_DIR" \
+  --input "$INPUT_DIR" \
   --main-jar "$MAIN_JAR" \
   --main-class "$MAIN_CLASS" \
   --resource-dir "$STAGE" \
@@ -100,6 +129,7 @@ jpackage \
   --runtime-image "$CUSTOM_RUNTIME" \
   --icon "$STAGE/$APPNAME.icns" \
   --java-options "-Dapple.laf.useScreenMenuBar=true" \
+  --java-options "--add-modules=jdk.incubator.vector" \
   --mac-package-identifier "com.jeremyzay.zaychess" \
   --mac-app-store \
   --mac-signing-key-user-name "Apple Distribution: Jeremy Theodore Zay (9A9HR6WT4K)" \

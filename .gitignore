@@ -4,6 +4,8 @@ bin/
 /dist/
 /build/
 /.idea/
+/log/
+*.log
 *.sh
 !build-mac-pkg-mas-12-lic.sh
 !make_icns.sh

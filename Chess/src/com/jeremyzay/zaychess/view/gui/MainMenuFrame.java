@@ -120,6 +120,7 @@ public class MainMenuFrame extends JFrame {
     // in MainMenuFrame
     public void startVsComputer() {
         controller.setEngine();
+        if (!controller.isUsingEngine()) return;
         Object[] options = {"♙", "♟", "❌"}; // white, black, cancel
         int choice = JOptionPane.showOptionDialog(
                 this, "Choose your side", "Play vs Computer",

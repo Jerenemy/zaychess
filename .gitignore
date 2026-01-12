@@ -1,6 +1,5 @@
-*/bin/
-
-# Project exclude paths
+bin/
+**/bin/
 /out/
 /dist/
 /build/

@@ -28,6 +28,7 @@ SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
 APPNAME="Zaychess"
 MAIN_CLASS="com.jeremyzay.zaychess.App"
+BUNDLE_ID="com.jeremyzay.zaychess"
 ARTIFACTS_DIR="$SCRIPT_DIR/out/artifacts"
 DEST="$SCRIPT_DIR/dist"
 STAGE="$SCRIPT_DIR/build/macos-resources"
@@ -36,6 +37,7 @@ INPUT_DIR="$SCRIPT_DIR/build/jpackage-input"
 APP="$DEST/$APPNAME.app"
 SIGN_ID="5C8AF79D5FA7AE13418BDE021625DFF59019AAA8"
 ENT="sandbox.plist"
+APP_ENT="/tmp/${APPNAME}-app-entitlements.plist"
 PROFILE="$PWD/$APPNAME.provisionprofile"
 
 # 0) pick a JDK with jpackage (21 preferred, fallback 17)
@@ -97,6 +99,29 @@ mkdir -p "$INPUT_DIR/engines"
 cp -f "$JAR_PATH" "$INPUT_DIR/$MAIN_JAR"
 cp -f "$ENGINE_SRC" "$INPUT_DIR/engines/Serendipity.jar"
 
+# 2c) build app entitlements with application-identifier for TestFlight
+[[ -f "$ENT" ]]      || { echo "Entitlements not found: $ENT"; exit 1; }
+[[ -f "$PROFILE" ]]  || { echo "Provisioning profile not found: $PROFILE"; exit 1; }
+
+TEAM_ID="${TEAM_ID:-}"
+if [[ -z "$TEAM_ID" ]]; then
+  PROFILE_PLIST="$(/usr/bin/mktemp "/tmp/${APPNAME}-profile.XXXXXX.plist")"
+  /usr/bin/security cms -D -i "$PROFILE" > "$PROFILE_PLIST"
+  TEAM_ID="$(/usr/libexec/PlistBuddy -c "Print :TeamIdentifier:0" "$PROFILE_PLIST" 2>/dev/null || true)"
+  rm -f "$PROFILE_PLIST"
+fi
+if [[ -z "$TEAM_ID" || ! "$TEAM_ID" =~ ^[A-Z0-9]{10}$ ]]; then
+  echo "Team ID not found in provisioning profile. Set TEAM_ID env var."
+  exit 1
+fi
+echo "Using Team ID: $TEAM_ID"
+
+cp -f "$ENT" "$APP_ENT"
+/usr/libexec/PlistBuddy -c "Add :com.apple.application-identifier string ${TEAM_ID}.${BUNDLE_ID}" "$APP_ENT" 2>/dev/null || \
+  /usr/libexec/PlistBuddy -c "Set :com.apple.application-identifier ${TEAM_ID}.${BUNDLE_ID}" "$APP_ENT"
+/usr/libexec/PlistBuddy -c "Add :com.apple.developer.team-identifier string ${TEAM_ID}" "$APP_ENT" 2>/dev/null || \
+  /usr/libexec/PlistBuddy -c "Set :com.apple.developer.team-identifier ${TEAM_ID}" "$APP_ENT"
+
 # 3) Create a stripped runtime image for Mac App Store
 CUSTOM_RUNTIME="$SCRIPT_DIR/build/custom-runtime"
 echo "Creating stripped runtime image for Mac App Store..."
@@ -119,7 +144,7 @@ echo "✅ Custom runtime created at: $CUSTOM_RUNTIME"
 jpackage \
   --type app-image \
   --name "$APPNAME" \
-  --app-version "1.0.7" \
+  --app-version "1.0.9" \
   --mac-app-category games \
   --input "$INPUT_DIR" \
   --main-jar "$MAIN_JAR" \
@@ -130,10 +155,10 @@ jpackage \
   --icon "$STAGE/$APPNAME.icns" \
   --java-options "-Dapple.laf.useScreenMenuBar=true" \
   --java-options "--add-modules=jdk.incubator.vector" \
-  --mac-package-identifier "com.jeremyzay.zaychess" \
+  --mac-package-identifier "$BUNDLE_ID" \
   --mac-app-store \
   --mac-signing-key-user-name "Apple Distribution: Jeremy Theodore Zay (9A9HR6WT4K)" \
-  --mac-entitlements "$SCRIPT_DIR/$ENT"
+  --mac-entitlements "$APP_ENT"
 
 echo "✅ App created: $DEST/$APPNAME.app"
 
@@ -146,7 +171,7 @@ echo "Setting minimum macOS version to 12.0..."
 echo "✅ Minimum macOS version set to 12.0 (allows ARM64-only)"
 
 [[ -d "$APP/Contents" ]] || { echo "App not found: $APP"; exit 1; }
-[[ -f "$ENT" ]]          || { echo "Entitlements not found: $ENT"; exit 1; }
+[[ -f "$APP_ENT" ]]      || { echo "App entitlements not found: $APP_ENT"; exit 1; }
 [[ -f "$PROFILE" ]]      || { echo "Provisioning profile not found: $PROFILE"; exit 1; }
 
 # 6) Embed provisioning profile
@@ -206,11 +231,12 @@ done < <(find "$APP/Contents" -type f \( -perm -111 -o -name '*.dylib' -o -name 
 
 # 9) Sign the top-level .app
 codesign --force --timestamp --options runtime \
-  --entitlements "$ENT" \
+  --entitlements "$APP_ENT" \
   -s "$SIGN_ID" "$APP"
 
 # Cleanup
 rm -f /tmp/java_sandbox_entitlements.plist
+rm -f "$APP_ENT"
 
 # 10) Verify signing and plist
 codesign --verify --deep --strict --verbose=5 "$APP"

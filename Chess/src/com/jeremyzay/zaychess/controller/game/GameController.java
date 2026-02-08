@@ -331,6 +331,9 @@ public class GameController implements NetworkTransport.Listener {
 		if (boardPanel == null)
 			return;
 
+		// Clear opponent's last move highlight on interaction
+		clearLastMoveHighlight();
+
 		// block until connected in online mode
 		if (isOnline() && !networkReady) {
 			ChessFrame.getStatusPanel().setStatus("Waiting for opponent to connect…", Color.GRAY);
@@ -497,6 +500,48 @@ public class GameController implements NetworkTransport.Listener {
 	}
 
 	/**
+	 * Attempts a drag-and-drop move from {@code from} to {@code to}.
+	 * Returns true if the move was valid and applied, false otherwise.
+	 * Does not show illegal move message - BoardPanel handles the snap-back
+	 * animation.
+	 *
+	 * @param from origin square
+	 * @param to   destination square
+	 * @return true if move was valid and applied
+	 */
+	public boolean tryDragMove(Position from, Position to) {
+		// Same validation as validateSquareClick
+		if (from == null || to == null)
+			return false;
+		if (boardPanel == null)
+			return false;
+		if (isOnline() && !networkReady)
+			return false;
+		if (gameState.isGameOver())
+			return false;
+		if (isOnline() && localSide != null && gameState.getTurn() != localSide)
+			return false;
+		if (!isOnline() && engine != null && localSide != null && gameState.getTurn() != localSide)
+			return false;
+
+		Move m = MoveGenerator.getValidMoveInTurn(gameState, from, to);
+		if (m == null) {
+			return false;
+		}
+
+		if (m.getMoveType() == MoveType.PROMOTION) {
+			PromotionPiece choice = PromotionDialog.prompt(boardPanel, gameState.getTurn());
+			if (choice == null)
+				return false; // user cancelled
+			m = m.withPromotion(choice);
+		}
+
+		applyMoveAndNotify(m, /* broadcast */ true);
+		maybeEngineRespond();
+		return true;
+	}
+
+	/**
 	 * Notifies the user of an illegal move attempt, clears any highlight/selection.
 	 */
 	private void showIllegalMove() {
@@ -569,19 +614,19 @@ public class GameController implements NetworkTransport.Listener {
 		}
 	}
 
+	public Position getSelectedPosition() {
+		return selectedPosition;
+	}
+
+	public void clearSelection() {
+		clearHighlights();
+	}
+
 	private void clearHighlights() {
 		if (boardPanel != null) {
 			boardPanel.clearHighlights(com.jeremyzay.zaychess.view.gui.theme.HighlightType.SELECTION);
 		}
-		// selectedPosition is managed by the caller (selectOrMovePiece),
-		// but if we are clearing highlights it implies deselection.
-		// However, applyMoveAndNotify calls this, and selectOrMovePiece sets
-		// selectedPosition = null.
-		// We'll leave selectedPosition management to the state machine, this just
-		// clears UI.
-		// But for consistency with highlightLegalMoves setting it, maybe we should
-		// clear it?
-		// No, `selectOrMovePiece` does `selectedPosition = null`.
+		selectedPosition = null; // Ensure logic state matches UI state
 	}
 
 	// --- Game End Handling ---
@@ -707,6 +752,15 @@ public class GameController implements NetworkTransport.Listener {
 					true);
 			boardPanel.setHighlight(last.getToPos(), com.jeremyzay.zaychess.view.gui.theme.HighlightType.LAST_MOVE,
 					true);
+		}
+	}
+
+	/**
+	 * Public method to clear last move highlights on user interaction
+	 */
+	public void clearLastMoveHighlight() {
+		if (boardPanel != null) {
+			boardPanel.clearHighlights(com.jeremyzay.zaychess.view.gui.theme.HighlightType.LAST_MOVE);
 		}
 	}
 

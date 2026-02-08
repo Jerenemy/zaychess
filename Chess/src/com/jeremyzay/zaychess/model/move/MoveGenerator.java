@@ -44,7 +44,8 @@ public abstract class MoveGenerator {
     }
 
     /**
-     * Placeholder: generates all legal moves for a piece whose color matches the turn.
+     * Placeholder: generates all legal moves for a piece whose color matches the
+     * turn.
      *
      * @param gameState current state
      * @param pos       position of piece
@@ -64,6 +65,9 @@ public abstract class MoveGenerator {
      * @return the valid move object, or null if not legal
      */
     public static Move getValidMoveInTurn(GameState gameState, Position from, Position to) {
+        if (gameState.getPieceAt(from) == null) {
+            return null;
+        }
         if (!gameState.isTurn(gameState.getPieceColorAt(from))) {
             System.out.println(gameState.getTurn().toString() + " it's not your turn");
             return null;

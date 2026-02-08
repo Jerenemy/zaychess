@@ -27,6 +27,7 @@ public class ChessFrame extends JFrame {
     private final BoardPanel boardPanel;
     private static final MoveListPanel moveListPanel = new MoveListPanel();
     private static final StatusPanel statusPanel = new StatusPanel();
+    private final DragGlassPane dragGlassPane;
 
     // fullscreen state
     private boolean fullscreen = false;
@@ -47,6 +48,12 @@ public class ChessFrame extends JFrame {
         MouseInputHandler mouseInputHandler = new MouseInputHandler(controller);
         boardPanel = new BoardPanel(board, mouseInputHandler);
         controller.setBoardPanel(boardPanel);
+
+        // Set up drag glass pane for smooth piece dragging
+        dragGlassPane = new DragGlassPane();
+        setGlassPane(dragGlassPane);
+        boardPanel.setDragGlassPane(dragGlassPane);
+        boardPanel.setController(controller);
 
         // --------- TOP BAR (CENTERED): toggle + available buttons ---------
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 6));

@@ -57,16 +57,17 @@ public class MainMenuFrame extends JFrame {
 
 	/** Load a saved game from disk. Shows dialog to choose vs Human or vs AI. */
 	public void loadLocalGame() {
-		JFileChooser chooser = new JFileChooser();
-		chooser.setDialogTitle("Load Game");
-		chooser.setFileFilter(
-				new javax.swing.filechooser.FileNameExtensionFilter("Chess save (*.chesslog)", "chesslog"));
+		// Use native file dialog for modern look on macOS
+		java.awt.FileDialog fd = new java.awt.FileDialog(this, "Load Game", java.awt.FileDialog.LOAD);
+		fd.setDirectory(System.getProperty("user.home") + "/Downloads");
+		fd.setFilenameFilter((dir, name) -> name.toLowerCase().endsWith(".chesslog"));
+		fd.setVisible(true);
 
-		int result = chooser.showOpenDialog(this);
-		if (result != JFileChooser.APPROVE_OPTION)
-			return;
+		String fileName = fd.getFile();
+		if (fileName == null)
+			return; // User cancelled
 
-		java.io.File selectedFile = chooser.getSelectedFile();
+		java.io.File selectedFile = new java.io.File(fd.getDirectory(), fileName);
 
 		// Show mode selection dialog
 		Object[] options = { "vs Human", "vs AI", "Cancel" };

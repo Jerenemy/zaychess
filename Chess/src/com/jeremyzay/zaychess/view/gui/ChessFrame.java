@@ -146,34 +146,35 @@ public class ChessFrame extends JFrame {
 
     /** Save dialog (offline). */
     private void handleSave(GameController controller) {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Save game");
-        chooser.setFileFilter(
-                new javax.swing.filechooser.FileNameExtensionFilter("Schachdatei (*.chesslog)", "chesslog"));
+        // Use native file dialog for modern look on macOS
+        java.awt.FileDialog fd = new java.awt.FileDialog((java.awt.Frame) null, "Save Game", java.awt.FileDialog.SAVE);
+        fd.setDirectory(System.getProperty("user.home") + "/Downloads");
+        fd.setFile("game.chesslog");
+        fd.setVisible(true);
 
-        int result = chooser.showSaveDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            File selected = chooser.getSelectedFile();
-            String path = selected.getAbsolutePath();
-            if (!path.toLowerCase().endsWith(".chesslog"))
-                path += ".chesslog";
-            File finalFile = new File(path);
+        String fileName = fd.getFile();
+        if (fileName == null)
+            return; // User cancelled
 
-            if (finalFile.exists()) {
-                int confirm = JOptionPane.showConfirmDialog(this,
-                        "This game (" + finalFile.getName().split("\\.")[0]
-                                + ") already exists. Do you want to overwrite?",
-                        "Confirmation", JOptionPane.YES_NO_OPTION);
-                if (confirm != JOptionPane.YES_OPTION)
-                    return;
-            }
+        String path = fd.getDirectory() + fileName;
+        if (!path.toLowerCase().endsWith(".chesslog"))
+            path += ".chesslog";
+        File finalFile = new File(path);
 
-            try {
-                new SaveManager(controller).saveGame(finalFile);
-            } catch (IOException ex) {
-                JOptionPane.showMessageDialog(this, "Error saving: " + ex.getMessage(),
-                        "Error", JOptionPane.ERROR_MESSAGE);
-            }
+        if (finalFile.exists()) {
+            int confirm = JOptionPane.showConfirmDialog(this,
+                    "This game (" + finalFile.getName().split("\\.")[0]
+                            + ") already exists. Do you want to overwrite?",
+                    "Confirmation", JOptionPane.YES_NO_OPTION);
+            if (confirm != JOptionPane.YES_OPTION)
+                return;
+        }
+
+        try {
+            new SaveManager(controller).saveGame(finalFile);
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "Error saving: " + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 

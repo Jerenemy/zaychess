@@ -82,7 +82,7 @@ public class MainMenuFrame extends JFrame {
 	 * Start as host in multiplayer. Shows waiting dialog until a client connects.
 	 */
 	public void startHostGame() {
-		JDialog waitingDialog = openWaitingDialog("Warte auf Gegner...");
+		JDialog waitingDialog = openWaitingDialog("Waiting for opponent...");
 		// When waiting window is closed, clean up host
 		waitingDialog.addWindowListener(new WindowAdapter() {
 			@Override
@@ -127,7 +127,7 @@ public class MainMenuFrame extends JFrame {
 
 	/** Connect to the Relay Server and wait for a match. */
 	public void startOnlineMatchmaking() {
-		JDialog waitingDialog = openWaitingDialog("Warte auf Gegner..."); // Reusing waiting dialog logic
+		JDialog waitingDialog = openWaitingDialog("Waiting for opponent..."); // Reusing waiting dialog logic
 
 		// Allow cancel
 		waitingDialog.addWindowListener(new WindowAdapter() {

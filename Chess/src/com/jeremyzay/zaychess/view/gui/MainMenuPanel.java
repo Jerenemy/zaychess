@@ -46,8 +46,7 @@ public class MainMenuPanel extends JPanel {
         JButton local = createMenuButton("Local Game");
         JButton vsAI = createMenuButton("Play vs Computer");
         JButton load = createMenuButton("Load Saved Game");
-        JButton host = createMenuButton("Host Multiplayer");
-        JButton join = createMenuButton("Join Multiplayer");
+
         int vertSeparation = 0;
         add(center(local));
         add(Box.createRigidArea(new Dimension(0, vertSeparation)));
@@ -55,25 +54,18 @@ public class MainMenuPanel extends JPanel {
         add(Box.createRigidArea(new Dimension(0, vertSeparation)));
         add(center(load));
         add(Box.createRigidArea(new Dimension(0, vertSeparation)));
-        add(center(host));
+
+        JButton online = createMenuButton("Online Matchmaking");
+        online.addActionListener(e -> owner.startOnlineMatchmaking());
+        add(center(online));
         add(Box.createRigidArea(new Dimension(0, vertSeparation)));
-        add(center(join));
+
         add(Box.createVerticalGlue());
 
         local.addActionListener(e -> owner.startLocalGame());
         vsAI.addActionListener(e -> owner.startVsComputer());
         load.addActionListener(e -> owner.loadLocalGame());
-        host.addActionListener(e -> owner.startHostGame());
-        join.addActionListener(e -> {
-            String ip = JOptionPane.showInputDialog(owner, "Host IP:");
-            if (ip != null && !ip.isBlank())
-                owner.startClientGame(ip.trim());
-        });
 
-        JButton online = createMenuButton("Online Matchmaking");
-        online.addActionListener(e -> owner.startOnlineMatchmaking());
-        add(Box.createRigidArea(new Dimension(0, 0))); // small gap
-        add(center(online));
     }
 
     private JButton createMenuButton(String text) {

@@ -40,10 +40,11 @@ javac -d bin -sourcepath Chess/src -cp Chess/engines/Serendipity.jar Chess/src/c
 
 ### Running the App
 ```bash
-java -cp bin:Chess/engines/Serendipity.jar com.jeremyzay.zaychess.App
+java --add-modules=jdk.incubator.vector -cp bin:Chess/engines/Serendipity.jar com.jeremyzay.zaychess.App
 ```
 *Note: If you are missing assets, append `Chess/src` to the classpath:*
-`java -cp bin:Chess/src:Chess/engines/Serendipity.jar com.jeremyzay.zaychess.App`
+`java --add-modules=jdk.incubator.vector -cp bin:Chess/src:Chess/engines/Serendipity.jar com.jeremyzay.zaychess.App`
+
 
 ### Running the Relay Server (for Online Matchmaking)
 The authentication server is a simple Node.js script.
@@ -78,3 +79,15 @@ node relay-server/server.js
 ### Working On
 *   🛠 **Linux Server Deployment**: Dockerizing the relay server.
 *   🛠 **Robustness**: Handling disconnects and server crashes gracefully.
+
+
+todo: update save game. also update save game to work with ai
+have board switch sides when black is user's turn
+improve launcher to not have host multiplayer and join multiplayer
+add visuals for what move just occurred
+finish multiplayer mode
+increase size of popup choosing side against ai
+improve visuals of when you or the opponent is in check using colors of the board tiles
+improve visuals of when you or the opponent is in checkmate using colors of the board tiles
+add undo move against ai
+add scaled difficulty ai

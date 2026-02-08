@@ -102,9 +102,13 @@ public class GameLauncher {
      * Connects to the Relay Server and waits for a match.
      * When a match is found, the RelayClient notifies us via callback.
      * We then set the side, dispose the waiting dialog, and launch the board.
+     * 
+     * @param clientRef optional reference to hold the created client (for
+     *                  cancellation)
      */
     public static void launchOnline(GameState gameState, GameController controller,
-            JDialog waitingDialog, MainMenuFrame menuFrame) {
+            JDialog waitingDialog, MainMenuFrame menuFrame,
+            java.util.concurrent.atomic.AtomicReference<RelayClient> clientRef) {
         try {
             // Read from environment variable, fallback to default server IP
             String relayHost = System.getenv("ZAYCHESS_RELAY_SERVER");
@@ -114,6 +118,9 @@ public class GameLauncher {
             int relayPort = 8080;
 
             RelayClient client = new RelayClient(relayHost, relayPort);
+            if (clientRef != null) {
+                clientRef.set(client);
+            }
 
             client.setMatchmakingListener(new RelayClient.MatchmakingListener() {
                 @Override
@@ -150,8 +157,8 @@ public class GameLauncher {
                         if (waitingDialog != null)
                             waitingDialog.dispose();
                         javax.swing.JOptionPane.showMessageDialog(menuFrame,
-                                "Fehler bei der Spielsuche: " + msg,
-                                "Fehler", javax.swing.JOptionPane.ERROR_MESSAGE);
+                                "Matchmaking error: " + msg,
+                                "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
                     });
                 }
             });

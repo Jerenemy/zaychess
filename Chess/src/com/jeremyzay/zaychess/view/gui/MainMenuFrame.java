@@ -190,70 +190,31 @@ public class MainMenuFrame extends JFrame {
 		}
 	}
 
-	/**
-	 * Start as host in multiplayer. Shows waiting dialog until a client connects.
-	 */
-	public void startHostGame() {
-		JDialog waitingDialog = openWaitingDialog("Waiting for opponent...");
-		// When waiting window is closed, clean up host
-		waitingDialog.addWindowListener(new WindowAdapter() {
-			@Override
-			public void windowClosing(WindowEvent e) {
-				if (controller.getHost() != null) {
-					try {
-						controller.getHost().close();
-					} catch (Exception ex) {
-						ex.printStackTrace();
-					}
-				}
-				SwingUtilities.invokeLater(() -> openMultiplayerMenu());
-			}
-		});
-
-		SwingUtilities.invokeLater(() -> waitingDialog.setVisible(true));
-
-		// Run host launch in a background thread
-		new Thread(() -> {
-			GameLauncher.launchAsHost(gameState, controller, waitingDialog, this);
-			ChessFrame.getMoveListPanel().clearMoves();
-		}).start();
-	}
-
 	/** Start as client in multiplayer. Connects to given host IP. */
-	public void startClientGame(String ip) {
-		JDialog loadingDialog = openLoadingDialog("Verbinde...");
-		SwingUtilities.invokeLater(() -> loadingDialog.setVisible(true));
-
-		new Thread(() -> {
-			boolean success = GameLauncher.launchAsClient(gameState, controller, ip);
-			loadingDialog.dispose();
-			if (success) {
-				dispose();
-			} else {
-				JOptionPane.showMessageDialog(this, "Unbekannter Host oder keine Verbindung möglich.",
-						"Verbindungsfehler", JOptionPane.ERROR_MESSAGE);
-				openMultiplayerMenu();
-			}
-		}).start();
-	}
 
 	/** Connect to the Relay Server and wait for a match. */
 	public void startOnlineMatchmaking() {
 		JDialog waitingDialog = openWaitingDialog("Waiting for opponent..."); // Reusing waiting dialog logic
+		java.util.concurrent.atomic.AtomicReference<com.jeremyzay.zaychess.services.infrastructure.network.RelayClient> clientRef = new java.util.concurrent.atomic.AtomicReference<>();
 
 		// Allow cancel
 		waitingDialog.addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosing(WindowEvent e) {
-				// TODO: Disconnect relay client if it's connected
-				SwingUtilities.invokeLater(() -> openMultiplayerMenu());
+				// Disconnect relay client if it's connected (prevent zombie connections)
+				com.jeremyzay.zaychess.services.infrastructure.network.RelayClient client = clientRef.get();
+				if (client != null) {
+					client.close();
+				}
+				// Main menu remains visible behind the dialog, so we just return to it
+				// effectively.
 			}
 		});
 
 		SwingUtilities.invokeLater(() -> waitingDialog.setVisible(true));
 
 		new Thread(() -> {
-			GameLauncher.launchOnline(gameState, controller, waitingDialog, this);
+			GameLauncher.launchOnline(gameState, controller, waitingDialog, this, clientRef);
 		}).start();
 	}
 
@@ -355,8 +316,5 @@ public class MainMenuFrame extends JFrame {
 	}
 
 	/** Open the multiplayer menu window. */
-	public void openMultiplayerMenu() {
-		new MultiplayerMenuFrame(this);
-		setVisible(false);
-	}
+
 }

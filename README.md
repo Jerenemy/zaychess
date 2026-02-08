@@ -9,6 +9,11 @@ A Java-based Chess application with local, AI, and online multiplayer modes.
 *   **Online Multiplayer**: Connect to the central Relay Server for automatic matchmaking.
 *   **Save/Load**: Save your game state and resume later.
 *   **Move History**: View and navigate through past moves with undo/redo.
+*   **Drag-and-Drop Gameplay**: Smooth piece movement with visual feedback and snap-back animations.
+*   **Smart Selection**: Click-to-move or drag-to-move, with intelligent highlight clearing.
+*   **Load Game vs AI**: Resume saved games against the engine.
+*   **Robust Undo/Redo**: Fully supported in Local and AI modes (undoes both moves in AI games).
+*   **UCI Save Format**: Standardized game saving compatible with chess tools.
 *   **Visual Highlights**:
     *   Last move highlighting (yellow)
     *   Check highlighting (red)
@@ -86,7 +91,8 @@ sudo ufw allow 8080/tcp
 
 ## 🚧 Roadmap
 
-- [ ] Undo move against AI
+- [x] Undo move against AI
+- [x] Drag-and-Drop Support
 - [ ] Scaled difficulty AI
 - [ ] Captured pieces display
 - [ ] Clock functionality

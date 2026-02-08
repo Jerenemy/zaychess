@@ -45,6 +45,15 @@ public class MultiplayerMenuPanel extends JPanel {
 			}
 		});
 
+		JButton onlineButton = new JButton("Online-Warteschlange");
+		onlineButton.setPreferredSize(buttonSize);
+		onlineButton.addActionListener(e -> {
+			parent.startOnlineMatchmaking();
+			frame.dispose();
+		});
+
+		add(onlineButton, gbc);
+
 		backButton.addActionListener(e -> {
 			parent.setVisible(true);
 			frame.dispose();

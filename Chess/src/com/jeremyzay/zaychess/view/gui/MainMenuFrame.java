@@ -15,9 +15,9 @@ import com.jeremyzay.zaychess.model.util.PlayerColor;
 /**
  * The entry point window for the chess application.
  * Provides main menu options:
- *  - Start local game
- *  - Load saved game
- *  - Host or join multiplayer game
+ * - Start local game
+ * - Load saved game
+ * - Host or join multiplayer game
  */
 public class MainMenuFrame extends JFrame {
 	private static final long serialVersionUID = 4115239067261707835L;
@@ -25,15 +25,15 @@ public class MainMenuFrame extends JFrame {
 	private final GameState gameState = new GameState();
 	private final GameController controller;
 
-    {
-        try {
-        controller = new GameController(gameState, null);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
+	{
+		try {
+			controller = new GameController(gameState, null);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
 
-    public MainMenuFrame() {
+	public MainMenuFrame() {
 		setTitle("Zaychess – Launcher");
 		setDefaultCloseOperation(EXIT_ON_CLOSE);
 		setLayout(new BorderLayout());
@@ -41,9 +41,9 @@ public class MainMenuFrame extends JFrame {
 		// Menu panel with buttons
 		MainMenuPanel menuPanel = new MainMenuPanel(this, 500);
 		add(menuPanel, BorderLayout.CENTER);
-        setContentPane(menuPanel);
-        pack();
-//		setSize(768, 432);
+		setContentPane(menuPanel);
+		pack();
+		// setSize(768, 432);
 		setLocationRelativeTo(null);
 		setResizable(false);
 	}
@@ -59,7 +59,8 @@ public class MainMenuFrame extends JFrame {
 	public void loadLocalGame() {
 		JFileChooser chooser = new JFileChooser();
 		chooser.setDialogTitle("Spiel laden");
-		chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Schachdatei (*.chesslog)", "chesslog"));
+		chooser.setFileFilter(
+				new javax.swing.filechooser.FileNameExtensionFilter("Schachdatei (*.chesslog)", "chesslog"));
 
 		int result = chooser.showOpenDialog(this);
 		if (result == JFileChooser.APPROVE_OPTION) {
@@ -77,17 +78,24 @@ public class MainMenuFrame extends JFrame {
 		}
 	}
 
-	/** Start as host in multiplayer. Shows waiting dialog until a client connects. */
+	/**
+	 * Start as host in multiplayer. Shows waiting dialog until a client connects.
+	 */
 	public void startHostGame() {
-		JDialog waitingDialog = openWaitingDialog();
+		JDialog waitingDialog = openWaitingDialog("Warte auf Gegner...");
 		// When waiting window is closed, clean up host
 		waitingDialog.addWindowListener(new WindowAdapter() {
-		    @Override public void windowClosing(WindowEvent e) {
-		        if (controller.getHost() != null) {
-		            try { controller.getHost().close(); } catch (Exception ex) { ex.printStackTrace(); }
-		        }
-		        SwingUtilities.invokeLater(() -> openMultiplayerMenu());
-		    }
+			@Override
+			public void windowClosing(WindowEvent e) {
+				if (controller.getHost() != null) {
+					try {
+						controller.getHost().close();
+					} catch (Exception ex) {
+						ex.printStackTrace();
+					}
+				}
+				SwingUtilities.invokeLater(() -> openMultiplayerMenu());
+			}
 		});
 
 		SwingUtilities.invokeLater(() -> waitingDialog.setVisible(true));
@@ -101,7 +109,7 @@ public class MainMenuFrame extends JFrame {
 
 	/** Start as client in multiplayer. Connects to given host IP. */
 	public void startClientGame(String ip) {
-		JDialog loadingDialog = openLoadingDialog();
+		JDialog loadingDialog = openLoadingDialog("Verbinde...");
 		SwingUtilities.invokeLater(() -> loadingDialog.setVisible(true));
 
 		new Thread(() -> {
@@ -117,32 +125,51 @@ public class MainMenuFrame extends JFrame {
 		}).start();
 	}
 
-    // in MainMenuFrame
-    public void startVsComputer() {
-        controller.setEngine();
-        if (!controller.isUsingEngine()) return;
-        Object[] options = {"♙", "♟", "❌"}; // white, black, cancel
-        int choice = JOptionPane.showOptionDialog(
-                this, "Choose your side", "Play vs Computer",
-                JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
-                null, options, options[0]
-        );
-        if (choice == 2 || choice == JOptionPane.CLOSED_OPTION) return;
+	/** Connect to the Relay Server and wait for a match. */
+	public void startOnlineMatchmaking() {
+		JDialog waitingDialog = openWaitingDialog("Warte auf Gegner..."); // Reusing waiting dialog logic
 
-        PlayerColor you =
-                (choice == 0) ? PlayerColor.WHITE
-                        : PlayerColor.BLACK;
+		// Allow cancel
+		waitingDialog.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(WindowEvent e) {
+				// TODO: Disconnect relay client if it's connected
+				SwingUtilities.invokeLater(() -> openMultiplayerMenu());
+			}
+		});
 
-        GameLauncher.launch(gameState, controller);
-        controller.startEngineGame(you);          // NEW (see below)
-        ChessFrame.getMoveListPanel().clearMoves();
-        dispose();
-    }
+		SwingUtilities.invokeLater(() -> waitingDialog.setVisible(true));
 
+		new Thread(() -> {
+			GameLauncher.launchOnline(gameState, controller, waitingDialog, this);
+		}).start();
+	}
 
-    /** Helper: waiting dialog with spinner while hosting. */
-	private JDialog openWaitingDialog() {
-		JDialog dialog = new JDialog(this, "Warte auf Gegner...", false);
+	// in MainMenuFrame
+	public void startVsComputer() {
+		controller.setEngine();
+		if (!controller.isUsingEngine())
+			return;
+		Object[] options = { "♙", "♟", "❌" }; // white, black, cancel
+		int choice = JOptionPane.showOptionDialog(
+				this, "Choose your side", "Play vs Computer",
+				JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
+				null, options, options[0]);
+		if (choice == 2 || choice == JOptionPane.CLOSED_OPTION)
+			return;
+
+		PlayerColor you = (choice == 0) ? PlayerColor.WHITE
+				: PlayerColor.BLACK;
+
+		GameLauncher.launch(gameState, controller);
+		controller.startEngineGame(you); // NEW (see below)
+		ChessFrame.getMoveListPanel().clearMoves();
+		dispose();
+	}
+
+	/** Helper: waiting dialog with spinner while hosting. */
+	private JDialog openWaitingDialog(String title) {
+		JDialog dialog = new JDialog(this, title, false);
 		JProgressBar progressBar = new JProgressBar();
 		progressBar.setIndeterminate(true);
 		dialog.add(progressBar);
@@ -153,8 +180,8 @@ public class MainMenuFrame extends JFrame {
 	}
 
 	/** Helper: loading dialog with spinner while connecting as client. */
-	private JDialog openLoadingDialog() {
-		JDialog dialog = new JDialog(this, "Verbinde...", true);
+	private JDialog openLoadingDialog(String title) {
+		JDialog dialog = new JDialog(this, title, true);
 		JProgressBar progressBar = new JProgressBar();
 		progressBar.setIndeterminate(true);
 		dialog.add(progressBar);

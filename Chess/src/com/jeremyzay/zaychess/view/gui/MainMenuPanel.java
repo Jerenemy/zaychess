@@ -6,11 +6,13 @@ import javax.swing.*;
 
 /**
  * Panel for the main menu UI.
- * Displays buttons for starting games, loading saves, multiplayer, and quitting.
+ * Displays buttons for starting games, loading saves, multiplayer, and
+ * quitting.
  * Draws the main menu background image.
  */
 public class MainMenuPanel extends JPanel {
-    @Serial private static final long serialVersionUID = 3788552984549957863L;
+    @Serial
+    private static final long serialVersionUID = 3788552984549957863L;
 
     private final Image backgroundImage = ResourceLoader.MAIN_MENU_BACKGROUND;
     private final int uiHeight;
@@ -25,11 +27,12 @@ public class MainMenuPanel extends JPanel {
             imgH = ii.getIconHeight();
         }
         if (imgW <= 0 || imgH <= 0) { // fallback to a safe ratio if something’s wrong
-            imgW = 1920; imgH = 1080;
+            imgW = 1920;
+            imgH = 1080;
         }
 
         this.uiHeight = targetHeight;
-        this.uiWidth  = (int)Math.round(targetHeight * (imgW / (double)imgH));
+        this.uiWidth = (int) Math.round(targetHeight * (imgW / (double) imgH));
 
         // fix the panel size to this image‑scaled size
         Dimension d = new Dimension(uiWidth, uiHeight);
@@ -41,15 +44,19 @@ public class MainMenuPanel extends JPanel {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         add(Box.createVerticalGlue());
         JButton local = createMenuButton("Local Game");
-        JButton vsAI  = createMenuButton("Play vs Computer");
-        JButton load  = createMenuButton("Load Saved Game");
-        JButton host  = createMenuButton("Host Multiplayer");
-        JButton join  = createMenuButton("Join Multiplayer");
+        JButton vsAI = createMenuButton("Play vs Computer");
+        JButton load = createMenuButton("Load Saved Game");
+        JButton host = createMenuButton("Host Multiplayer");
+        JButton join = createMenuButton("Join Multiplayer");
         int vertSeparation = 0;
-        add(center(local)); add(Box.createRigidArea(new Dimension(0, vertSeparation)));
-        add(center(vsAI));  add(Box.createRigidArea(new Dimension(0, vertSeparation)));
-        add(center(load));  add(Box.createRigidArea(new Dimension(0, vertSeparation)));
-        add(center(host));  add(Box.createRigidArea(new Dimension(0, vertSeparation)));
+        add(center(local));
+        add(Box.createRigidArea(new Dimension(0, vertSeparation)));
+        add(center(vsAI));
+        add(Box.createRigidArea(new Dimension(0, vertSeparation)));
+        add(center(load));
+        add(Box.createRigidArea(new Dimension(0, vertSeparation)));
+        add(center(host));
+        add(Box.createRigidArea(new Dimension(0, vertSeparation)));
         add(center(join));
         add(Box.createVerticalGlue());
 
@@ -59,10 +66,15 @@ public class MainMenuPanel extends JPanel {
         host.addActionListener(e -> owner.startHostGame());
         join.addActionListener(e -> {
             String ip = JOptionPane.showInputDialog(owner, "Host IP:");
-            if (ip != null && !ip.isBlank()) owner.startClientGame(ip.trim());
+            if (ip != null && !ip.isBlank())
+                owner.startClientGame(ip.trim());
         });
-    }
 
+        JButton online = createMenuButton("Online Matchmaking");
+        online.addActionListener(e -> owner.startOnlineMatchmaking());
+        add(Box.createRigidArea(new Dimension(0, 0))); // small gap
+        add(center(online));
+    }
 
     private JButton createMenuButton(String text) {
         JButton button = new JButton(text) {
@@ -74,8 +86,10 @@ public class MainMenuPanel extends JPanel {
                 // base + hover/press alpha
                 float alpha = 0.35f;
                 ButtonModel m = getModel();
-                if (m.isRollover()) alpha = 0.50f;
-                if (m.isPressed())  alpha = 0.65f;
+                if (m.isRollover())
+                    alpha = 0.50f;
+                if (m.isPressed())
+                    alpha = 0.65f;
 
                 g2.setComposite(AlphaComposite.SrcOver.derive(alpha));
                 g2.setColor(new Color(255, 255, 255)); // or new Color(255,0,0) if you want red tint
@@ -100,13 +114,11 @@ public class MainMenuPanel extends JPanel {
         button.setBorderPainted(true);
         button.setFocusPainted(false);
         button.setRolloverEnabled(true);
-//        button.setBorder(BorderFactory.createEmptyBorder(6, 16, 6, 16));
-//        button.setBorder(BorderFactory.createEmptyBorder(4, 14, 4, 14));
-
+        // button.setBorder(BorderFactory.createEmptyBorder(6, 16, 6, 16));
+        // button.setBorder(BorderFactory.createEmptyBorder(4, 14, 4, 14));
 
         return button;
     }
-
 
     private Component center(JButton button) {
         JPanel wrapper = new JPanel();
@@ -116,7 +128,6 @@ public class MainMenuPanel extends JPanel {
         wrapper.add(button);
         return wrapper;
     }
-
 
     @Override
     protected void paintComponent(Graphics g) {

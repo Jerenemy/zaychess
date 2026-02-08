@@ -151,6 +151,24 @@ public class GameController implements NetworkTransport.Listener {
 		}
 	}
 
+	/**
+	 * Syncs the engine's internal position with the current game state.
+	 * Call this after loading a saved game to ensure the engine knows the current
+	 * position.
+	 * 
+	 * @param fen the FEN string representing the current board position
+	 */
+	public void syncEnginePosition(String fen) {
+		if (engine == null)
+			return;
+		try {
+			engine.newGame();
+			engine.setPositionFEN(fen);
+		} catch (Exception e) {
+			System.err.println("Failed to sync engine position: " + e.getMessage());
+		}
+	}
+
 	// ──────────────────────────────────────────────────────────────────────────────
 	// NetworkTransport.Listener
 	// ──────────────────────────────────────────────────────────────────────────────
@@ -727,11 +745,38 @@ public class GameController implements NetworkTransport.Listener {
 	/**
 	 * Undoes the last move if available, restores the board/UI accordingly,
 	 * and removes the last line from the move list.
+	 * 
+	 * In AI mode, undoes both the AI's move and the human's move so the player
+	 * can redo their turn. Then syncs the engine with the new position.
 	 */
 	public void undo() {
 		if (!history.canUndo())
 			return;
 
+		// Invalidate any pending AI move computation
+		engineMoveVersion++;
+
+		// In AI games, undo twice (AI's response + human's move)
+		if (isUsingEngine() && history.canUndo()) {
+			// Check if we need to undo AI's move first (it's currently human's turn)
+			if (gameState.getTurn() == localSide) {
+				// AI just moved, need to undo AI's move first
+				undoSingleMove();
+			}
+			// Now undo human's move
+			if (history.canUndo()) {
+				undoSingleMove();
+			}
+			// Sync engine with new position
+			syncEngineAfterUndo();
+		} else {
+			// Standard undo for non-AI games
+			undoSingleMove();
+		}
+	}
+
+	/** Helper: undoes a single move and updates UI */
+	private void undoSingleMove() {
 		history.undo(gameState); // restores snapshot
 		if (boardPanel != null)
 			boardPanel.updateBoard(gameState.getBoard());
@@ -744,14 +789,47 @@ public class GameController implements NetworkTransport.Listener {
 		}
 	}
 
+	/** Syncs the engine position after undo */
+	private void syncEngineAfterUndo() {
+		if (engine == null)
+			return;
+		String fen = com.jeremyzay.zaychess.services.application.notation.FenGenerator.toFen(gameState);
+		syncEnginePosition(fen);
+	}
+
 	/**
 	 * Redoes the next move if available, computes SAN based on the current state,
 	 * reapplies the move, updates UI, and appends to the move list.
+	 * 
+	 * In AI mode, redoes both the human's move and the AI's response,
+	 * then syncs the engine with the new position.
 	 */
 	public void redo() {
 		if (!history.canRedo())
 			return;
 
+		// In AI games, redo twice (human's move + AI's response)
+		if (isUsingEngine()) {
+			// First redo: human's move
+			redoSingleMove();
+			// Second redo: AI's move (if available)
+			if (history.canRedo()) {
+				redoSingleMove();
+			}
+			// Sync engine with new position
+			syncEngineAfterUndo();
+			// If it's now AI's turn and no AI move was redone, trigger AI
+			if (gameState.getTurn() != localSide) {
+				maybeEngineRespond();
+			}
+		} else {
+			// Standard redo for non-AI games
+			redoSingleMove();
+		}
+	}
+
+	/** Helper: redoes a single move and updates UI */
+	private void redoSingleMove() {
 		Move redoMove = history.peekRedoMove();
 		if (redoMove == null)
 			return;
@@ -792,6 +870,7 @@ public class GameController implements NetworkTransport.Listener {
 
 	// --- fields
 	private volatile boolean engineThinking = false;
+	private volatile int engineMoveVersion = 0; // incremented on undo to invalidate pending AI moves
 
 	// Call from MainMenuFrame after launching board
 	public void startEngineGame(PlayerColor you) {
@@ -821,6 +900,7 @@ public class GameController implements NetworkTransport.Listener {
 		if (engine == null || engineThinking)
 			return;
 		engineThinking = true;
+		final int versionAtStart = engineMoveVersion;
 		new Thread(() -> {
 			try {
 				GameState snap = gameState.snapshot();
@@ -828,13 +908,23 @@ public class GameController implements NetworkTransport.Listener {
 				String uci = engine.bestMoveMs(1500); // ~1.5s thinking
 				Move em = decodeUci(uci);
 				if (em != null) {
-					SwingUtilities.invokeLater(() -> applyMoveAndNotify(em, false));
+					SwingUtilities.invokeLater(() -> {
+						// Only apply if no undo occurred during thinking
+						if (versionAtStart == engineMoveVersion) {
+							applyMoveAndNotify(em, false);
+						}
+					});
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
 			} finally {
 				engineThinking = false;
-				SwingUtilities.invokeLater(this::maybeEngineRespond);
+				SwingUtilities.invokeLater(() -> {
+					// Only continue if no undo occurred
+					if (versionAtStart == engineMoveVersion) {
+						maybeEngineRespond();
+					}
+				});
 			}
 		}, "engine-move").start();
 	}

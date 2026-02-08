@@ -55,26 +55,137 @@ public class MainMenuFrame extends JFrame {
 		dispose();
 	}
 
-	/** Load a saved offline game from disk. */
+	/** Load a saved game from disk. Shows dialog to choose vs Human or vs AI. */
 	public void loadLocalGame() {
 		JFileChooser chooser = new JFileChooser();
-		chooser.setDialogTitle("Spiel laden");
+		chooser.setDialogTitle("Load Game");
 		chooser.setFileFilter(
-				new javax.swing.filechooser.FileNameExtensionFilter("Schachdatei (*.chesslog)", "chesslog"));
+				new javax.swing.filechooser.FileNameExtensionFilter("Chess save (*.chesslog)", "chesslog"));
 
 		int result = chooser.showOpenDialog(this);
-		if (result == JFileChooser.APPROVE_OPTION) {
-			try {
-				GameLauncher.launch(gameState, controller);
-				ChessFrame.getMoveListPanel().clearMoves();
+		if (result != JFileChooser.APPROVE_OPTION)
+			return;
 
-				new SaveManager(controller).loadGame(chooser.getSelectedFile());
+		java.io.File selectedFile = chooser.getSelectedFile();
 
-				dispose();
-			} catch (IOException ex) {
-				JOptionPane.showMessageDialog(this, "Fehler beim Laden: " + ex.getMessage(),
-						"Ladefehler", JOptionPane.ERROR_MESSAGE);
-			}
+		// Show mode selection dialog
+		Object[] options = { "vs Human", "vs AI", "Cancel" };
+		int choice = JOptionPane.showOptionDialog(this,
+				"Continue this game against:",
+				"Load Game Mode",
+				JOptionPane.YES_NO_CANCEL_OPTION,
+				JOptionPane.QUESTION_MESSAGE,
+				null,
+				options,
+				options[0]);
+
+		if (choice == 0) {
+			// Load vs Human (local 2-player)
+			loadGameHuman(selectedFile);
+		} else if (choice == 1) {
+			// Load vs AI - show side selection
+			loadGameVsAI(selectedFile);
+		}
+		// else: Cancel - do nothing
+	}
+
+	/** Load game for local human vs human play. */
+	private void loadGameHuman(java.io.File file) {
+		try {
+			GameLauncher.launch(gameState, controller);
+			ChessFrame.getMoveListPanel().clearMoves();
+			new SaveManager(controller).loadGame(file);
+			dispose();
+		} catch (IOException ex) {
+			JOptionPane.showMessageDialog(this, "Error loading: " + ex.getMessage(),
+					"Load Error", JOptionPane.ERROR_MESSAGE);
+		}
+	}
+
+	/** Load game for play against the AI. Shows side selection dialog. */
+	private void loadGameVsAI(java.io.File file) {
+		// Start engine first
+		controller.setEngine();
+		if (!controller.isUsingEngine())
+			return;
+
+		// Show side selection dialog
+		showAISideSelectionDialog(file);
+	}
+
+	/** Shows dialog to select which side to play and then loads game vs AI. */
+	private void showAISideSelectionDialog(java.io.File file) {
+		JDialog dialog = new JDialog(this, "Choose Your Side", true);
+		dialog.setLayout(new BorderLayout());
+
+		JPanel buttonPanel = new JPanel(new java.awt.GridLayout(1, 2, 20, 0));
+		buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+		com.jeremyzay.zaychess.model.pieces.King whiteKing = new com.jeremyzay.zaychess.model.pieces.King(
+				PlayerColor.WHITE, null);
+		com.jeremyzay.zaychess.model.pieces.King blackKing = new com.jeremyzay.zaychess.model.pieces.King(
+				PlayerColor.BLACK, null);
+
+		int iconSize = 80;
+
+		JButton whiteBtn = new JButton("White");
+		whiteBtn.setIcon(ResourceLoader.getPieceIcon(whiteKing, iconSize));
+		whiteBtn.setHorizontalTextPosition(SwingConstants.CENTER);
+		whiteBtn.setVerticalTextPosition(SwingConstants.BOTTOM);
+		whiteBtn.setFocusable(false);
+		whiteBtn.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 16));
+		whiteBtn.addActionListener(e -> {
+			dialog.dispose();
+			finishLoadVsAI(file, PlayerColor.WHITE);
+		});
+
+		JButton blackBtn = new JButton("Black");
+		blackBtn.setIcon(ResourceLoader.getPieceIcon(blackKing, iconSize));
+		blackBtn.setHorizontalTextPosition(SwingConstants.CENTER);
+		blackBtn.setVerticalTextPosition(SwingConstants.BOTTOM);
+		blackBtn.setFocusable(false);
+		blackBtn.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 16));
+		blackBtn.addActionListener(e -> {
+			dialog.dispose();
+			finishLoadVsAI(file, PlayerColor.BLACK);
+		});
+
+		buttonPanel.add(whiteBtn);
+		buttonPanel.add(blackBtn);
+		dialog.add(buttonPanel, BorderLayout.CENTER);
+
+		JButton cancelBtn = new JButton("❌");
+		cancelBtn.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 24));
+		cancelBtn.setFocusable(false);
+		cancelBtn.addActionListener(e -> dialog.dispose());
+		JPanel bottomPanel = new JPanel();
+		bottomPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+		bottomPanel.add(cancelBtn);
+		dialog.add(bottomPanel, BorderLayout.SOUTH);
+
+		dialog.pack();
+		dialog.setLocationRelativeTo(this);
+		dialog.setVisible(true);
+	}
+
+	/** Finish loading game vs AI after side selection. */
+	private void finishLoadVsAI(java.io.File file, PlayerColor humanSide) {
+		try {
+			GameLauncher.launch(gameState, controller);
+			ChessFrame.getMoveListPanel().clearMoves();
+			new SaveManager(controller).loadGame(file);
+
+			// Sync engine with loaded position
+			String fen = com.jeremyzay.zaychess.services.application.notation.FenGenerator.toFen(gameState);
+			controller.syncEnginePosition(fen);
+
+			// Start engine game with chosen side
+			controller.startEngineGame(humanSide);
+
+			dispose();
+		} catch (IOException ex) {
+			JOptionPane.showMessageDialog(this, "Error loading: " + ex.getMessage(),
+					"Load Error", JOptionPane.ERROR_MESSAGE);
 		}
 	}
 

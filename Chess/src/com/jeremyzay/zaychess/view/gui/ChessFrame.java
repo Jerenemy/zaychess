@@ -57,8 +57,8 @@ public class ChessFrame extends JFrame {
         movesToggle.addActionListener(e -> toggleMovesPanel());
         topBar.add(movesToggle);
 
-        // Offline-only: undo/redo (skip when engine drives moves)
-        if (!controller.isOnline() && !controller.isUsingEngine()) {
+        // Offline-only: undo/redo (available for local games AND vs AI)
+        if (!controller.isOnline()) {
             JButton undoButton = new JButton("←");
             undoButton.setMargin(new Insets(2, 6, 2, 6));
             undoButton.setFocusable(false);

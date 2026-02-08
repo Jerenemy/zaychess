@@ -91,3 +91,5 @@ improve visuals of when you or the opponent is in check using colors of the boar
 improve visuals of when you or the opponent is in checkmate using colors of the board tiles
 add undo move against ai
 add scaled difficulty ai
+add visibility for how many pieces have been captured
+add clock funtionality

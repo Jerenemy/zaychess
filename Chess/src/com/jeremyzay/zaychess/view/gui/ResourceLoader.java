@@ -50,9 +50,9 @@ public final class ResourceLoader {
         return ICON_CACHE.computeIfAbsent(key, ResourceLoader::loadIcon);
     }
 
-    private static final Map<String, ImageIcon> SCALED_ICON_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, javax.swing.Icon> SCALED_ICON_CACHE = new ConcurrentHashMap<>();
 
-    public static ImageIcon getPieceIcon(Piece p, int size) {
+    public static javax.swing.Icon getPieceIcon(Piece p, int size) {
         String baseKey = piecePath(p);
         String key = baseKey + "#" + size;
         return SCALED_ICON_CACHE.computeIfAbsent(key, k -> {
@@ -65,7 +65,7 @@ public final class ResourceLoader {
      * Custom Icon that paints the original high-res image scaled down,
      * ensuring high quality on HiDPI displays.
      */
-    private static class HiDPIIcon extends ImageIcon {
+    private static class HiDPIIcon implements javax.swing.Icon {
         private final Image original;
         private final int width;
         private final int height;

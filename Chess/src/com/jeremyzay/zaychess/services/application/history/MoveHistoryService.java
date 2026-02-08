@@ -14,11 +14,14 @@ public interface MoveHistoryService {
     /**
      * Records a move and its snapshot before execution.
      *
-     * @param gs current game state
-     * @param m  the move to record
+     * @param gs   current game state
+     * @param m    the move to record
      * @param snap snapshot of the state before applying the move
      */
     void record(GameState gs, Move m, GameState snap);
+
+    /** Clears all history (undo/redo stacks). */
+    void clear();
 
     /** @return true if at least one move can be undone. */
     boolean canUndo();
@@ -45,5 +48,14 @@ public interface MoveHistoryService {
      *
      * @return the move to be redone, or null if none
      */
-    default Move peekRedoMove() { return null; }
+    default Move peekRedoMove() {
+        return null;
+    }
+
+    /**
+     * @return the last move played (that can be undone), or null if none.
+     */
+    default Move peekLastMove() {
+        return null;
+    }
 }

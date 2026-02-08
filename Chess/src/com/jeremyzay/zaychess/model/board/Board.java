@@ -105,7 +105,8 @@ public class Board {
     }
 
     /** Creates an empty board. */
-    public Board() {}
+    public Board() {
+    }
 
     /**
      * Deep-copy constructor. Copies all pieces from the given board,
@@ -129,10 +130,26 @@ public class Board {
     public List<Piece> getPiecesOfColor(PlayerColor color) {
         List<Piece> pieces = new ArrayList<Piece>();
         for (int i = 0; i < 64; i++) {
-            if (squares1D[i] == null) continue;
-            if (squares1D[i].getColor() == color) pieces.add(squares1D[i]);
+            if (squares1D[i] != null && squares1D[i].getColor() == color) {
+                pieces.add(squares1D[i]);
+            }
         }
         return pieces;
+    }
+
+    /**
+     * Finds the King of a given color.
+     * 
+     * @return Position of the king, or null if not found.
+     */
+    public Position findKing(PlayerColor color) {
+        for (int i = 0; i < 64; i++) {
+            Piece p = squares1D[i];
+            if (p != null && p.getColor() == color && p instanceof com.jeremyzay.zaychess.model.pieces.King) {
+                return new Position(rankOfIndex(i), fileOfIndex(i));
+            }
+        }
+        return null;
     }
 
     /**
@@ -143,7 +160,8 @@ public class Board {
      * @throws IllegalArgumentException if index is out of range
      */
     public int rankOfIndex(int index) {
-        if (index < 0 || index >= 64) throw new IllegalArgumentException();
+        if (index < 0 || index >= 64)
+            throw new IllegalArgumentException();
         return index / 8;
     }
 
@@ -155,7 +173,8 @@ public class Board {
      * @throws IllegalArgumentException if index is out of range
      */
     public int fileOfIndex(int index) {
-        if (index < 0 || index >= 64) throw new IllegalArgumentException();
+        if (index < 0 || index >= 64)
+            throw new IllegalArgumentException();
         return index % 8;
     }
 }

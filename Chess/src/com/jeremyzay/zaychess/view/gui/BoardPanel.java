@@ -23,9 +23,9 @@ public class BoardPanel extends JPanel {
 	private final SquareButton[][] squares = new SquareButton[BOARD_SIZE][BOARD_SIZE];
 	private final MouseInputHandler mouseInputHandler;
 
-	// Board square colors
-	private final Color darkSqColor = new Color(32, 108, 125);
-	private final Color lightSqColor = new Color(160, 221, 235);
+	// Board Theme
+	private com.jeremyzay.zaychess.view.gui.theme.BoardTheme currentTheme = com.jeremyzay.zaychess.view.gui.theme.BoardTheme
+			.DEFAULT();
 
 	// Default to White's perspective (Rank 0 at top-left/start if logic assumes
 	// that)
@@ -71,6 +71,29 @@ public class BoardPanel extends JPanel {
 	}
 
 	/**
+	 * Clear all highlights of a specific type.
+	 */
+	public void clearHighlights(com.jeremyzay.zaychess.view.gui.theme.HighlightType type) {
+		for (int r = 0; r < BOARD_SIZE; r++) {
+			for (int c = 0; c < BOARD_SIZE; c++) {
+				if (squares[r][c] != null)
+					squares[r][c].setHighlight(type, false);
+			}
+		}
+	}
+
+	/**
+	 * Set highlight for a specific square.
+	 */
+	public void setHighlight(Position pos, com.jeremyzay.zaychess.view.gui.theme.HighlightType type, boolean active) {
+		if (pos == null)
+			return;
+		SquareButton btn = getSquareButton(pos);
+		if (btn != null)
+			btn.setHighlight(type, active);
+	}
+
+	/**
 	 * Initialize the 8x8 grid of square buttons from the given board state.
 	 */
 	private void initializeBoard(Board board) {
@@ -95,10 +118,10 @@ public class BoardPanel extends JPanel {
 				// Wait, a8 is light. (0+0)%2=0 -> light.
 				// h1 (7,7) is light. (7+7)%2=0 -> light.
 				boolean light = ((r + c) % 2 == 0);
-				Color base = light ? lightSqColor : darkSqColor;
+				// Color base = light ? lightSqColor : darkSqColor; -- handled by theme now
 
-				// Create square button with base square color
-				SquareButton button = new SquareButton(position, base);
+				// Create square button with theme
+				SquareButton button = new SquareButton(position, light, currentTheme);
 				button.setBorderPainted(false);
 
 				// Place current piece on the square

@@ -21,7 +21,11 @@ public final class MoveHistoryInMemory implements MoveHistoryService {
     private static final class Entry {
         final Move move;
         final GameState snapshotBefore; // castling rights, en passant, clocks, etc.
-        Entry(Move m, GameState s) { move = m; snapshotBefore = s; }
+
+        Entry(Move m, GameState s) {
+            move = m;
+            snapshotBefore = s;
+        }
     }
 
     /** Stack of moves available to undo. */
@@ -38,8 +42,16 @@ public final class MoveHistoryInMemory implements MoveHistoryService {
         redo.clear();
     }
 
+    @Override
+    public void clear() {
+        undo.clear();
+        redo.clear();
+    }
+
     /** @return true if there is at least one move to undo. */
-    public boolean canUndo() { return !undo.isEmpty(); }
+    public boolean canUndo() {
+        return !undo.isEmpty();
+    }
 
     /**
      * Undo the most recent move by restoring its snapshot.
@@ -52,7 +64,9 @@ public final class MoveHistoryInMemory implements MoveHistoryService {
     }
 
     /** @return true if there is at least one move to redo. */
-    public boolean canRedo() { return !redo.isEmpty(); }
+    public boolean canRedo() {
+        return !redo.isEmpty();
+    }
 
     /**
      * Redo the most recently undone move.
@@ -70,5 +84,10 @@ public final class MoveHistoryInMemory implements MoveHistoryService {
     @Override
     public Move peekRedoMove() {
         return redo.isEmpty() ? null : redo.peek().move;
+    }
+
+    @Override
+    public Move peekLastMove() {
+        return undo.isEmpty() ? null : undo.peek().move;
     }
 }

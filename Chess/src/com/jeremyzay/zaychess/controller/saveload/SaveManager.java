@@ -2,27 +2,24 @@ package com.jeremyzay.zaychess.controller.saveload;
 
 import com.jeremyzay.zaychess.controller.game.GameController;
 import com.jeremyzay.zaychess.model.game.GameState;
-import com.jeremyzay.zaychess.model.move.*;
 import com.jeremyzay.zaychess.model.move.Move;
 import com.jeremyzay.zaychess.model.move.MoveType;
-import com.jeremyzay.zaychess.model.move.PromotionPiece;
-import com.jeremyzay.zaychess.model.util.Position;
 import com.jeremyzay.zaychess.services.application.notation.NotationSAN;
-import com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec;
-import com.jeremyzay.zaychess.services.infrastructure.network.MoveMessage;
+import com.jeremyzay.zaychess.services.infrastructure.network.UciCodec;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Save/load manager for chess games.
  *
  * Provides functionality to serialize games to disk and
- * restore them later. Moves are written in a compact, machine-readable
- * format via {@link MoveCodec}, and loading is performed by replaying
- * all moves from the starting position.
+ * restore them later. Moves are written in UCI notation,
+ * and loading is performed by replaying all moves from the
+ * starting position.
  */
 public final class SaveManager {
     private final GameController controller;
@@ -33,23 +30,26 @@ public final class SaveManager {
     }
 
     /**
-     * Saves the entire game as a list of encoded moves.
+     * Saves the entire game as a list of UCI move strings.
      *
      * @param file destination file
      * @throws IOException if file writing fails
      */
     public void saveGame(File file) throws IOException {
-        List<String> lines = controller.getWireLog();
+        List<Move> moves = controller.getHistory().getMoves();
+        List<String> lines = new ArrayList<>();
+        for (Move m : moves) {
+            lines.add(UciCodec.toUci(m));
+        }
         Files.write(file.toPath(), lines, StandardCharsets.UTF_8);
     }
 
     /**
      * Loads a game by resetting the {@link GameState} and replaying
-     * all previously encoded moves.
+     * all previously saved UCI moves.
      *
      * - Reads lines from the given file.
-     * - Decodes each line into a {@link MoveMessage}.
-     * - Converts the message into a {@link Move}.
+     * - Decodes each line as UCI notation.
      * - Applies the move to the {@link GameState}.
      * - Updates SAN notation log and refreshes the GUI board panel.
      *
@@ -61,39 +61,32 @@ public final class SaveManager {
 
         // Reset game to the initial position
         gs.restoreFrom(new GameState());
+        controller.getHistory().clear();
 
         List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
         for (String line : lines) {
-            MoveMessage mm = MoveCodec.tryDecode(line);
-            if (mm == null) continue;
+            line = line.trim();
+            if (line.isEmpty())
+                continue;
 
-            // Decode "from" and "to" positions
-            Position from = new Position(mm.fromRank(), mm.fromFile());
-            Position to   = new Position(mm.toRank(), mm.toFile());
+            Move m = UciCodec.fromUci(line);
+            if (m == null)
+                continue;
 
-            // Determine move type, handle promotion if present
-            MoveType type;
-            PromotionPiece promo = null;
-            String t = mm.type();
-            if (t != null && t.startsWith("PROMOTION")) {
-                type = MoveType.PROMOTION;
-                int i = t.indexOf(':');
-                if (i > 0 && i + 1 < t.length()) {
-                    promo = PromotionPiece.valueOf(t.substring(i + 1));
-                }
-            } else {
-                type = MoveType.valueOf(t);
-            }
-
-            // Construct move object
-            Move m = new Move(from, to, type, promo);
+            // For loaded moves, we need to determine the actual move type from board state
+            Move actualMove = resolveMove(gs, m);
 
             // Snapshot game state for SAN notation
             GameState before = gs.copy();
-            String san = NotationSAN.toSAN(before, m);
+            String san = NotationSAN.toSAN(before, actualMove);
 
-            // Apply move and update logs
-            gs.applyMove(m);
+            // Record in history
+            controller.getHistory().record(gs, actualMove, before);
+
+            // Apply move
+            gs.applyMove(actualMove);
+
+            // Update logs
             controller.getWireLog().add(line);
             controller.dispatchMoveInfo(san);
         }
@@ -102,5 +95,53 @@ public final class SaveManager {
         if (controller.getBoardPanel() != null) {
             controller.getBoardPanel().updateBoard(gs.getBoard());
         }
+    }
+
+    /**
+     * Resolves a basic UCI move to a fully-typed move by examining board state.
+     * UCI doesn't encode move type, so we infer it from the current position.
+     */
+    private Move resolveMove(GameState gs, Move uciMove) {
+        var board = gs.getBoard();
+        var fromPiece = board.getPieceAt(uciMove.getFromPos());
+        var toPiece = board.getPieceAt(uciMove.getToPos());
+
+        // If already promotion, keep it
+        if (uciMove.getMoveType() == MoveType.PROMOTION) {
+            return uciMove;
+        }
+
+        // Check for castling (king moving 2 squares)
+        if (fromPiece instanceof com.jeremyzay.zaychess.model.pieces.King) {
+            int fileDiff = Math.abs(uciMove.getToPos().getFile() - uciMove.getFromPos().getFile());
+            if (fileDiff == 2) {
+                return new Move(uciMove.getFromPos(), uciMove.getToPos(), MoveType.CASTLE);
+            }
+        }
+
+        // Check for en passant (pawn diagonal capture to empty square)
+        if (fromPiece instanceof com.jeremyzay.zaychess.model.pieces.Pawn) {
+            int fileDiff = Math.abs(uciMove.getToPos().getFile() - uciMove.getFromPos().getFile());
+            if (fileDiff == 1 && toPiece == null) {
+                return new Move(uciMove.getFromPos(), uciMove.getToPos(), MoveType.EN_PASSANT);
+            }
+        }
+
+        // Check for pawn promotion (pawn reaching back rank)
+        if (fromPiece instanceof com.jeremyzay.zaychess.model.pieces.Pawn) {
+            int toRank = uciMove.getToPos().getRank();
+            if (toRank == 0 || toRank == 7) {
+                // Default to queen if no promotion specified
+                return Move.promotion(uciMove.getFromPos(), uciMove.getToPos(),
+                        com.jeremyzay.zaychess.model.move.PromotionPiece.QUEEN);
+            }
+        }
+
+        // Capture or normal
+        if (toPiece != null) {
+            return new Move(uciMove.getFromPos(), uciMove.getToPos(), MoveType.CAPTURE);
+        }
+
+        return new Move(uciMove.getFromPos(), uciMove.getToPos(), MoveType.NORMAL);
     }
 }

@@ -58,4 +58,11 @@ public interface MoveHistoryService {
     default Move peekLastMove() {
         return null;
     }
+
+    /**
+     * @return all moves in order (earliest first).
+     */
+    default java.util.List<Move> getMoves() {
+        return java.util.Collections.emptyList();
+    }
 }

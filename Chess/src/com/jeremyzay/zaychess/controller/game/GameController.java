@@ -128,6 +128,10 @@ public class GameController implements NetworkTransport.Listener {
 		return this.engine != null;
 	}
 
+	public MoveHistoryService getHistory() {
+		return history;
+	}
+
 	public void setEngine() {
 		this.engine = new SerendipityEngineService();
 		try {

@@ -90,4 +90,15 @@ public final class MoveHistoryInMemory implements MoveHistoryService {
     public Move peekLastMove() {
         return undo.isEmpty() ? null : undo.peek().move;
     }
+
+    @Override
+    public java.util.List<Move> getMoves() {
+        // Convert stack to list in order (oldest first)
+        java.util.List<Move> moves = new java.util.ArrayList<>();
+        for (Entry e : undo) {
+            moves.add(e.move);
+        }
+        java.util.Collections.reverse(moves);
+        return moves;
+    }
 }

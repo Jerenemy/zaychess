@@ -106,9 +106,11 @@ public class GameLauncher {
     public static void launchOnline(GameState gameState, GameController controller,
             JDialog waitingDialog, MainMenuFrame menuFrame) {
         try {
-            // Hardcoded relay server for now - in production this might be configurable
-            // "localhost" for local testing, or a real IP/domain
-            String relayHost = "localhost"; // TODO: Change to real server IP before release
+            // Read from environment variable, fallback to default server IP
+            String relayHost = System.getenv("ZAYCHESS_RELAY_SERVER");
+            if (relayHost == null || relayHost.isBlank()) {
+                relayHost = "172.104.31.166"; // Default production server
+            }
             int relayPort = 8080;
 
             RelayClient client = new RelayClient(relayHost, relayPort);

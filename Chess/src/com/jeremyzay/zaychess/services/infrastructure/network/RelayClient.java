@@ -69,15 +69,20 @@ public class RelayClient implements NetworkTransport {
 
     private void runLoop() {
         try {
+            System.out.println("[RelayClient] Attempting to connect to " + serverHost + ":" + serverPort + "...");
             socket = new Socket(serverHost, serverPort);
+            System.out.println("[RelayClient] Connected successfully to " + serverHost + ":" + serverPort);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new PrintWriter(socket.getOutputStream(), true);
 
             // 1. Join Queue automatically on connect
+            System.out.println("[RelayClient] Sending JOIN_QUEUE...");
             sendJson("JOIN_QUEUE", null);
 
             String line;
+            System.out.println("[RelayClient] Waiting for server messages...");
             while ((line = in.readLine()) != null) {
+                System.out.println("[RelayClient] Received: " + line);
                 // Parse JSON
                 // Simple parsing to avoid dragging in a huge JSON lib if not present
                 // (Though project likely has GSON or similar? Checking dependencies would be
@@ -86,6 +91,7 @@ public class RelayClient implements NetworkTransport {
 
                 if (line.contains("\"type\":\"MATCH_FOUND\"") || line.contains("\"type\": \"MATCH_FOUND\"")) {
                     boolean isHost = line.contains("\"role\":\"HOST\"") || line.contains("\"role\": \"HOST\"");
+                    System.out.println("[RelayClient] Match found! isHost=" + isHost);
 
                     // Only fire callback once
                     if (matchFound.compareAndSet(false, true)) {
@@ -107,6 +113,7 @@ public class RelayClient implements NetworkTransport {
                             if (lastQuote != -1) {
                                 content = content.substring(0, lastQuote);
                                 // Unescape if needed, but for simple chess moves likely fine
+                                System.out.println("[RelayClient] Move received: " + content);
                                 if (listener != null)
                                     listener.onMessage(content);
                             }
@@ -114,11 +121,15 @@ public class RelayClient implements NetworkTransport {
                     }
                 } else if (line.contains("\"type\":\"OPPONENT_LEFT\"")) {
                     // Handle disconnect
+                    System.out.println("[RelayClient] Opponent left the game.");
                     if (listener != null)
                         listener.onError(new IOException("Opponent disconnected"));
                 }
             }
+            System.out.println("[RelayClient] Server closed connection.");
         } catch (IOException e) {
+            System.err.println("[RelayClient] Connection error: " + e.getMessage());
+            e.printStackTrace();
             if (matchListener != null)
                 matchListener.onMatchmakingError("Connection error: " + e.getMessage());
             if (listener != null)

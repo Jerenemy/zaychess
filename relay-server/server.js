@@ -54,12 +54,12 @@ const server = net.createServer((socket) => {
 function handleMessage(socket, line) {
     try {
         console.log(`[${socket.remoteAddress}] Received: ${line}`);
-        
+
         // Basic protocol: Expect JSON or simple commands
         // For robustness, try parsing JSON first.
         // If it's just a raw Move string from the old protocol, implementation might differ,
         // but our plan specifies a NEW JSON protocol.
-        
+
         let msg;
         try {
             msg = JSON.parse(line);
@@ -100,7 +100,7 @@ function handleJoinQueue(socket) {
         // Link them
         socket.opponent = opponent;
         opponent.opponent = socket;
-        
+
         socket.isWaiting = false;
         opponent.isWaiting = false;
 
@@ -109,10 +109,10 @@ function handleJoinQueue(socket) {
         // Notify both - determine colors randomly or first-come-first-serve?
         // Let's say the waiting player (opponent) is White (Host logic equivalent)
         // and the joining player (socket) is Black (Client logic equivalent)
-        
+
         // Send "MATCH_FOUND" with "role": "HOST" or "CLIENT" to simplify client logic
         // Zaychess currently has Host (White) and Client (Black) modes.
-        
+
         send(opponent, MSG_MATCH_FOUND, { role: "HOST" });
         send(socket, MSG_MATCH_FOUND, { role: "CLIENT" });
 

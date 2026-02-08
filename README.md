@@ -82,8 +82,8 @@ node relay-server/server.js
 
 
 todo: update save game. also update save game to work with ai
-have board switch sides when black is user's turn
-improve launcher to not have host multiplayer and join multiplayer
+have board switch sides when black is user's turn DONE
+improve launcher to not have host multiplayer and join multiplayer DONE
 add visuals for what move just occurred
 finish multiplayer mode
 increase size of popup choosing side against ai

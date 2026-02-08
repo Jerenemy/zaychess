@@ -150,19 +150,70 @@ public class MainMenuFrame extends JFrame {
 		controller.setEngine();
 		if (!controller.isUsingEngine())
 			return;
-		Object[] options = { "♙", "♟", "❌" }; // white, black, cancel
-		int choice = JOptionPane.showOptionDialog(
-				this, "Choose your side", "Play vs Computer",
-				JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
-				null, options, options[0]);
-		if (choice == 2 || choice == JOptionPane.CLOSED_OPTION)
-			return;
 
-		PlayerColor you = (choice == 0) ? PlayerColor.WHITE
-				: PlayerColor.BLACK;
+		// Custom dialog for side selection
+		JDialog dialog = new JDialog(this, "Choose Side", true);
+		dialog.setLayout(new BorderLayout());
 
+		JPanel buttonPanel = new JPanel(new java.awt.GridLayout(1, 2, 20, 0));
+		buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+		// Create dummy pieces to get icons. King requires position; null is safe for
+		// fetching icons.
+		com.jeremyzay.zaychess.model.pieces.King whiteKing = new com.jeremyzay.zaychess.model.pieces.King(
+				PlayerColor.WHITE, null);
+		com.jeremyzay.zaychess.model.pieces.King blackKing = new com.jeremyzay.zaychess.model.pieces.King(
+				PlayerColor.BLACK, null);
+
+		int iconSize = 80;
+
+		// White Selection Button
+		JButton whiteBtn = new JButton("White");
+		whiteBtn.setIcon(ResourceLoader.getPieceIcon(whiteKing, iconSize));
+		whiteBtn.setHorizontalTextPosition(SwingConstants.CENTER);
+		whiteBtn.setVerticalTextPosition(SwingConstants.BOTTOM);
+		whiteBtn.setFocusable(false);
+		whiteBtn.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 16));
+		whiteBtn.addActionListener(e -> {
+			dialog.dispose();
+			launchEngineGame(PlayerColor.WHITE);
+		});
+
+		// Black Selection Button
+		JButton blackBtn = new JButton("Black");
+		blackBtn.setIcon(ResourceLoader.getPieceIcon(blackKing, iconSize));
+		blackBtn.setHorizontalTextPosition(SwingConstants.CENTER);
+		blackBtn.setVerticalTextPosition(SwingConstants.BOTTOM);
+		blackBtn.setFocusable(false);
+		blackBtn.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 16));
+		blackBtn.addActionListener(e -> {
+			dialog.dispose();
+			launchEngineGame(PlayerColor.BLACK);
+		});
+
+		buttonPanel.add(whiteBtn);
+		buttonPanel.add(blackBtn);
+
+		// No redundant header label - window title is enough
+		dialog.add(buttonPanel, BorderLayout.CENTER);
+
+		JButton cancelBtn = new JButton("❌");
+		cancelBtn.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 24));
+		cancelBtn.setFocusable(false);
+		cancelBtn.addActionListener(e -> dialog.dispose());
+		JPanel bottomPanel = new JPanel();
+		bottomPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+		bottomPanel.add(cancelBtn);
+		dialog.add(bottomPanel, BorderLayout.SOUTH);
+
+		dialog.pack();
+		dialog.setLocationRelativeTo(this);
+		dialog.setVisible(true);
+	}
+
+	private void launchEngineGame(PlayerColor you) {
 		GameLauncher.launch(gameState, controller);
-		controller.startEngineGame(you); // NEW (see below)
+		controller.startEngineGame(you);
 		ChessFrame.getMoveListPanel().clearMoves();
 		dispose();
 	}

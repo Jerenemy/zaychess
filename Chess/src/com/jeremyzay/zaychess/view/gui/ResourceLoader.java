@@ -14,13 +14,13 @@ import java.io.IOException;
 import java.awt.Image;
 
 public final class ResourceLoader {
-    private static final String MAIN_MENU_BG_PATH =
-            "/com/jeremyzay/zaychess/view/assets/main_menu_background.png";
+    private static final String MAIN_MENU_BG_PATH = "/com/jeremyzay/zaychess/view/assets/main_menu_background.png";
 
     public static BufferedImage MAIN_MENU_BACKGROUND;
 
     public static synchronized void preload() {
-        if (MAIN_MENU_BACKGROUND != null) return;
+        if (MAIN_MENU_BACKGROUND != null)
+            return;
         try (InputStream in = ResourceLoader.class.getResourceAsStream(MAIN_MENU_BG_PATH)) {
             if (in == null) {
                 throw new IllegalStateException("Resource not found: " + MAIN_MENU_BG_PATH);
@@ -30,7 +30,7 @@ public final class ResourceLoader {
             throw new RuntimeException("Failed to load " + MAIN_MENU_BG_PATH, e);
         }
     }
-    
+
     private static final Map<String, ImageIcon> ICON_CACHE = new ConcurrentHashMap<>();
 
     private static String piecePath(Piece p) {
@@ -40,7 +40,8 @@ public final class ResourceLoader {
 
     private static ImageIcon loadIcon(String absoluteClasspathPath) {
         URL url = ResourceLoader.class.getResource(absoluteClasspathPath);
-        if (url == null) throw new IllegalStateException("Missing resource: " + absoluteClasspathPath);
+        if (url == null)
+            throw new IllegalStateException("Missing resource: " + absoluteClasspathPath);
         return new ImageIcon(url);
     }
 
@@ -56,10 +57,50 @@ public final class ResourceLoader {
         String key = baseKey + "#" + size;
         return SCALED_ICON_CACHE.computeIfAbsent(key, k -> {
             ImageIcon base = ICON_CACHE.computeIfAbsent(baseKey, ResourceLoader::loadIcon);
-            Image scaled = base.getImage().getScaledInstance(size, size, Image.SCALE_SMOOTH);
-            return new ImageIcon(scaled);
+            return new HiDPIIcon(base.getImage(), size, size);
         });
     }
 
-    private ResourceLoader() {}
+    /**
+     * Custom Icon that paints the original high-res image scaled down,
+     * ensuring high quality on HiDPI displays.
+     */
+    private static class HiDPIIcon extends ImageIcon {
+        private final Image original;
+        private final int width;
+        private final int height;
+
+        public HiDPIIcon(Image original, int width, int height) {
+            this.original = original;
+            this.width = width;
+            this.height = height;
+        }
+
+        @Override
+        public int getIconWidth() {
+            return width;
+        }
+
+        @Override
+        public int getIconHeight() {
+            return height;
+        }
+
+        @Override
+        public synchronized void paintIcon(java.awt.Component c, java.awt.Graphics g, int x, int y) {
+            java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+            g2.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
+                    java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g2.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING,
+                    java.awt.RenderingHints.VALUE_RENDER_QUALITY);
+            g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                    java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+
+            g2.drawImage(original, x, y, width, height, c);
+            g2.dispose();
+        }
+    }
+
+    private ResourceLoader() {
+    }
 }

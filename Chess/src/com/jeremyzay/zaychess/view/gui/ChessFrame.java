@@ -15,11 +15,11 @@ import com.jeremyzay.zaychess.model.board.Board;
  * Main game window for the chess application.
  *
  * Contains:
- *  - BoardPanel (the chessboard)
- *  - MoveListPanel (list of moves played)
- *  - StatusPanel (whose turn, checkmate, etc.)
- *  - Top bar with controls (centered) + toggle to show/hide the right panel
- *  - Fullscreen toggle (F11)
+ * - BoardPanel (the chessboard)
+ * - MoveListPanel (list of moves played)
+ * - StatusPanel (whose turn, checkmate, etc.)
+ * - Top bar with controls (centered) + toggle to show/hide the right panel
+ * - Fullscreen toggle (F11)
  */
 public class ChessFrame extends JFrame {
     private static final long serialVersionUID = 8987259664968168100L;
@@ -36,8 +36,8 @@ public class ChessFrame extends JFrame {
     // split + toggle state
     private JSplitPane split;
     private boolean movesVisible = true;
-    private int lastDivider = -1;           // remember size when hidden
-    private JToggleButton movesToggle;      // always visible in top bar
+    private int lastDivider = -1; // remember size when hidden
+    private JToggleButton movesToggle; // always visible in top bar
 
     public ChessFrame(Board board, GameController controller) {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -63,14 +63,20 @@ public class ChessFrame extends JFrame {
             undoButton.setMargin(new Insets(2, 6, 2, 6));
             undoButton.setFocusable(false);
             undoButton.setToolTipText("Undo move");
-            undoButton.addActionListener(e -> { controller.undo(); boardPanel.repaint(); });
+            undoButton.addActionListener(e -> {
+                controller.undo();
+                boardPanel.repaint();
+            });
             topBar.add(undoButton);
 
             JButton redoButton = new JButton("→");
             redoButton.setMargin(new Insets(2, 6, 2, 6));
             redoButton.setFocusable(false);
             redoButton.setToolTipText("Redo move");
-            redoButton.addActionListener(e -> { controller.redo(); boardPanel.repaint(); });
+            redoButton.addActionListener(e -> {
+                controller.redo();
+                boardPanel.repaint();
+            });
             topBar.add(redoButton);
         }
 
@@ -101,10 +107,10 @@ public class ChessFrame extends JFrame {
         JComponent boardCenter = new AspectRatioPanel(boardPanel);
         split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, boardCenter, moveListPanel);
         split.setBorder(null);
-        split.setResizeWeight(1.0);            // prioritize board on resize
+        split.setResizeWeight(1.0); // prioritize board on resize
         split.setContinuousLayout(true);
         split.setOneTouchExpandable(true);
-        split.setDividerLocation(0.75);        // ~75% board width
+        split.setDividerLocation(0.75); // ~75% board width
 
         add(split, BorderLayout.CENTER);
         add(statusPanel, BorderLayout.SOUTH);
@@ -120,14 +126,21 @@ public class ChessFrame extends JFrame {
                 .put(KeyStroke.getKeyStroke("F11"), "toggleFS");
         getRootPane().getActionMap().put("toggleFS", new AbstractAction() {
             private static final long serialVersionUID = 1L;
-            @Override public void actionPerformed(ActionEvent e) { toggleFullscreen(); }
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                toggleFullscreen();
+            }
         });
 
         // Optional: Ctrl+M toggles the move list too
         getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
                 .put(KeyStroke.getKeyStroke("ctrl M"), "toggleMoves");
         getRootPane().getActionMap().put("toggleMoves", new AbstractAction() {
-            @Override public void actionPerformed(ActionEvent e) { toggleMovesPanel(); }
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                toggleMovesPanel();
+            }
         });
     }
 
@@ -135,20 +148,24 @@ public class ChessFrame extends JFrame {
     private void handleSave(GameController controller) {
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("Save game");
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Schachdatei (*.chesslog)", "chesslog"));
+        chooser.setFileFilter(
+                new javax.swing.filechooser.FileNameExtensionFilter("Schachdatei (*.chesslog)", "chesslog"));
 
         int result = chooser.showSaveDialog(this);
         if (result == JFileChooser.APPROVE_OPTION) {
             File selected = chooser.getSelectedFile();
             String path = selected.getAbsolutePath();
-            if (!path.toLowerCase().endsWith(".chesslog")) path += ".chesslog";
+            if (!path.toLowerCase().endsWith(".chesslog"))
+                path += ".chesslog";
             File finalFile = new File(path);
 
             if (finalFile.exists()) {
                 int confirm = JOptionPane.showConfirmDialog(this,
-                        "This game (" + finalFile.getName().split("\\.")[0] + ") already exists. Do you want to overwrite?",
+                        "This game (" + finalFile.getName().split("\\.")[0]
+                                + ") already exists. Do you want to overwrite?",
                         "Confirmation", JOptionPane.YES_NO_OPTION);
-                if (confirm != JOptionPane.YES_OPTION) return;
+                if (confirm != JOptionPane.YES_OPTION)
+                    return;
             }
 
             try {
@@ -171,30 +188,55 @@ public class ChessFrame extends JFrame {
                 dispose();
                 setUndecorated(true);
                 setVisible(true);
-                if (gd.isFullScreenSupported()) gd.setFullScreenWindow(this);
-                else setExtendedState(JFrame.MAXIMIZED_BOTH);
+                if (gd.isFullScreenSupported())
+                    gd.setFullScreenWindow(this);
+                else
+                    setExtendedState(JFrame.MAXIMIZED_BOTH);
                 fullscreen = true;
             } catch (Exception ex) {
                 setExtendedState(JFrame.MAXIMIZED_BOTH);
                 fullscreen = true;
             }
         } else {
-            try { if (gd.getFullScreenWindow() == this) gd.setFullScreenWindow(null); } catch (Exception ignored) {}
+            try {
+                if (gd.getFullScreenWindow() == this)
+                    gd.setFullScreenWindow(null);
+            } catch (Exception ignored) {
+            }
             dispose();
             setUndecorated(windowedDecorations);
-            if (windowedBounds != null) setBounds(windowedBounds);
+            if (windowedBounds != null)
+                setBounds(windowedBounds);
             setVisible(true);
             fullscreen = false;
         }
     }
 
     // Accessors
-    public BoardPanel getBoardPanel() { return boardPanel; }
-    public static MoveListPanel getMoveListPanel() { return moveListPanel; }
-    public static StatusPanel getStatusPanel() { return statusPanel; }
+    public BoardPanel getBoardPanel() {
+        return boardPanel;
+    }
+
+    public static MoveListPanel getMoveListPanel() {
+        return moveListPanel;
+    }
+
+    public static StatusPanel getStatusPanel() {
+        return statusPanel;
+    }
 
     /** Update the GUI board from a given model state. */
-    public void updateBoard(Board board) { boardPanel.updateBoard(board); }
+    public void updateBoard(Board board) {
+        boardPanel.updateBoard(board);
+    }
+
+    /**
+     * Sets the visual orientation of the board (e.g. WHITE at bottom or BLACK at
+     * bottom).
+     */
+    public void setBoardOrientation(com.jeremyzay.zaychess.model.util.PlayerColor color, Board board) {
+        boardPanel.setOrientationAndInit(color, board);
+    }
 
     /** Show/hide the right move list (toggle stays visible in the top bar). */
     private void toggleMovesPanel() {
@@ -205,10 +247,12 @@ public class ChessFrame extends JFrame {
         } else {
             split.setRightComponent(moveListPanel);
             split.resetToPreferredSizes();
-            if (lastDivider > 0) split.setDividerLocation(lastDivider);
+            if (lastDivider > 0)
+                split.setDividerLocation(lastDivider);
             movesVisible = true;
         }
-        if (movesToggle != null) movesToggle.setSelected(movesVisible);
+        if (movesToggle != null)
+            movesToggle.setSelected(movesVisible);
         revalidate();
         repaint();
     }

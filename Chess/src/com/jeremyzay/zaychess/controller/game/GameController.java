@@ -95,6 +95,9 @@ public class GameController implements NetworkTransport.Listener {
 	// ──────────────────────────────────────────────────────────────────────────────
 	public void setLocalSide(PlayerColor side) {
 		this.localSide = side;
+		if (boardPanel != null && side != null) {
+			boardPanel.setOrientationAndInit(side, gameState.getBoard());
+		}
 	}
 
 	public List<String> getWireLog() {
@@ -103,6 +106,11 @@ public class GameController implements NetworkTransport.Listener {
 
 	public void setBoardPanel(BoardPanel boardPanel) {
 		this.boardPanel = boardPanel;
+		// If we already know our side (e.g. online client JOINED as BLACK), apply
+		// orientation now
+		if (localSide != null) {
+			boardPanel.setOrientationAndInit(localSide, gameState.getBoard());
+		}
 	}
 
 	public GameState getGameState() {
@@ -483,7 +491,20 @@ public class GameController implements NetworkTransport.Listener {
 		// apply & UI
 		gameState.applyMove(m);
 		if (boardPanel != null) {
-			boardPanel.updateBoard(gameState.getBoard());
+			boolean flipped = false;
+			// Local hotseat: flip if the turn perspective changed vs current board
+			if (!isOnline() && !isUsingEngine()) {
+				if (boardPanel.getOrientation() != gameState.getTurn()) {
+					boardPanel.setOrientationAndInit(gameState.getTurn(), gameState.getBoard());
+					flipped = true;
+				}
+			}
+			// If we didn't do a full re-init (flip), we must update the pieces on existing
+			// buttons
+			if (!flipped) {
+				boardPanel.updateBoard(gameState.getBoard());
+			}
+
 			// clear selection highlight after a successful move
 			if (highlightedSquare != null) {
 				boardPanel.getSquareButton(highlightedSquare).setHighlighted(false);

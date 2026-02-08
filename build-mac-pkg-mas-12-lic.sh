@@ -35,10 +35,32 @@ STAGE="$SCRIPT_DIR/build/macos-resources"
 INPUT_DIR="$SCRIPT_DIR/build/jpackage-input"
 
 APP="$DEST/$APPNAME.app"
-SIGN_ID="5C8AF79D5FA7AE13418BDE021625DFF59019AAA8"
 ENT="sandbox.plist"
 APP_ENT="/tmp/${APPNAME}-app-entitlements.plist"
-PROFILE="$PWD/$APPNAME.provisionprofile"
+
+SIGN_MODE="${SIGN_MODE:-mas}" # mas|dev
+if [[ "$SIGN_MODE" != "mas" && "$SIGN_MODE" != "dev" ]]; then
+  echo "Invalid SIGN_MODE: $SIGN_MODE (use mas or dev)"; exit 1
+fi
+
+if [[ "$SIGN_MODE" == "mas" ]]; then
+  SIGN_NAME_DEFAULT="Apple Distribution: Jeremy Theodore Zay (9A9HR6WT4K)"
+  SIGN_ID_DEFAULT="5C8AF79D5FA7AE13418BDE021625DFF59019AAA8"
+  PKG_SIGN_NAME_DEFAULT="3rd Party Mac Developer Installer: Jeremy Theodore Zay (9A9HR6WT4K)"
+  MAC_APP_STORE_FLAG="--mac-app-store"
+  PROFILE_DEFAULT="$PWD/$APPNAME.provisionprofile"
+else
+  SIGN_NAME_DEFAULT="Apple Development: Jeremy Theodore Zay (4H63X98Y4G)"
+  SIGN_ID_DEFAULT="99D96F804BEF45D3F6535A19CF81C01FF3F19474"
+  PKG_SIGN_NAME_DEFAULT=""
+  MAC_APP_STORE_FLAG=""
+  PROFILE_DEFAULT="$PWD/${APPNAME}_Dev.provisionprofile"
+fi
+
+SIGN_NAME="${SIGN_NAME:-$SIGN_NAME_DEFAULT}"
+SIGN_ID="${SIGN_ID:-$SIGN_ID_DEFAULT}"
+PKG_SIGN_NAME="${PKG_SIGN_NAME:-$PKG_SIGN_NAME_DEFAULT}"
+PROFILE="${PROFILE:-$PROFILE_DEFAULT}"
 
 # 0) pick a JDK with jpackage (21 preferred, fallback 17)
 JAVA_HOME="$(/usr/libexec/java_home -v 21 2>/dev/null || /usr/libexec/java_home -v 17)"
@@ -99,7 +121,7 @@ mkdir -p "$INPUT_DIR/engines"
 cp -f "$JAR_PATH" "$INPUT_DIR/$MAIN_JAR"
 cp -f "$ENGINE_SRC" "$INPUT_DIR/engines/Serendipity.jar"
 
-# 2c) build app entitlements with application-identifier for TestFlight
+# 2c) build app entitlements with application-identifier for signing
 [[ -f "$ENT" ]]      || { echo "Entitlements not found: $ENT"; exit 1; }
 [[ -f "$PROFILE" ]]  || { echo "Provisioning profile not found: $PROFILE"; exit 1; }
 
@@ -156,8 +178,8 @@ jpackage \
   --java-options "-Dapple.laf.useScreenMenuBar=true" \
   --java-options "--add-modules=jdk.incubator.vector" \
   --mac-package-identifier "$BUNDLE_ID" \
-  --mac-app-store \
-  --mac-signing-key-user-name "Apple Distribution: Jeremy Theodore Zay (9A9HR6WT4K)" \
+  $MAC_APP_STORE_FLAG \
+  --mac-signing-key-user-name "$SIGN_NAME" \
   --mac-entitlements "$APP_ENT"
 
 echo "✅ App created: $DEST/$APPNAME.app"
@@ -278,12 +300,15 @@ fi
 
 
 
-# 11) Build installer package
-productbuild \
-  --sign "3rd Party Mac Developer Installer: Jeremy Theodore Zay (9A9HR6WT4K)" \
-  --component "$DEST/$APPNAME.app" /Applications \
-  "$DEST/$APPNAME-MAS.pkg"
+# 11) Build installer package (MAS only)
+if [[ "$SIGN_MODE" == "mas" ]]; then
+  productbuild \
+    --sign "$PKG_SIGN_NAME" \
+    --component "$DEST/$APPNAME.app" /Applications \
+    "$DEST/$APPNAME-MAS.pkg"
 
-pkgutil --check-signature "$DEST/$APPNAME-MAS.pkg"
-
-echo "✅ Ready for App Store submission: $DEST/$APPNAME-MAS.pkg"
+  pkgutil --check-signature "$DEST/$APPNAME-MAS.pkg"
+  echo "✅ Ready for App Store submission: $DEST/$APPNAME-MAS.pkg"
+else
+  echo "✅ Dev build ready: $DEST/$APPNAME.app"
+fi

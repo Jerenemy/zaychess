@@ -18,7 +18,7 @@ public class MainMenuPanel extends JPanel {
     private final int uiHeight;
     private final int uiWidth;
 
-    public MainMenuPanel(MainMenuFrame owner, int targetHeight) {
+    public MainMenuPanel(MainFrame owner, int targetHeight) {
         // --- compute width from image aspect ratio ---
         int imgW = 0, imgH = 0;
         if (backgroundImage != null) {

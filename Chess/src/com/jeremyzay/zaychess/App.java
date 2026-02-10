@@ -5,18 +5,21 @@ import javax.swing.JFrame;
 import javax.swing.JProgressBar;
 import javax.swing.SwingUtilities;
 
-import com.jeremyzay.zaychess.view.gui.MainMenuFrame;
+import com.jeremyzay.zaychess.view.gui.MainFrame;
 import com.jeremyzay.zaychess.view.gui.ResourceLoader;
 
 public class App {
-	/**
-	 * Entry point for the Chess application.
-	 */
+    /**
+     * Entry point for the Chess application.
+     */
 
-	@SuppressWarnings("resource")
-	public static void main(String[] args) {
+    @SuppressWarnings("resource")
+    public static void main(String[] args) {
         try {
             SwingUtilities.invokeLater(() -> {
+                // Initialize MainFrame immediately to capture instance?
+                // The loading dialog logic is fine.
+
                 JDialog loadingDialog = new JDialog((JFrame) null, "Lade Schach...", true);
                 JProgressBar progressBar = new JProgressBar();
                 progressBar.setIndeterminate(true);
@@ -27,8 +30,10 @@ public class App {
 
                 new Thread(() -> {
                     ResourceLoader.preload();
-                    loadingDialog.dispose();
-                    SwingUtilities.invokeLater(() -> new MainMenuFrame().setVisible(true));
+                    SwingUtilities.invokeLater(() -> {
+                        loadingDialog.dispose();
+                        new MainFrame().setVisible(true);
+                    });
                 }).start();
 
                 loadingDialog.setVisible(true);
@@ -38,5 +43,5 @@ public class App {
                     javax.swing.JOptionPane.ERROR_MESSAGE);
             e.printStackTrace();
         }
-	}
+    }
 }

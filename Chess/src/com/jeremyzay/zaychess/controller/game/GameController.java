@@ -22,8 +22,9 @@ import com.jeremyzay.zaychess.services.application.history.MoveHistoryService;
 import com.jeremyzay.zaychess.services.application.notation.NotationFEN;
 import com.jeremyzay.zaychess.services.application.notation.NotationSAN;
 import com.jeremyzay.zaychess.view.gui.BoardPanel;
-import com.jeremyzay.zaychess.view.gui.ChessFrame;
 import com.jeremyzay.zaychess.view.gui.PromotionDialog;
+import com.jeremyzay.zaychess.view.gui.MainFrame;
+import com.jeremyzay.zaychess.view.gui.ChessPanel;
 
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
@@ -60,6 +61,11 @@ public class GameController implements NetworkTransport.Listener {
 	private volatile boolean networkReady = true; // offline defaults to true
 	private PlayerColor localSide = null;
 	private Position selectedPosition = null;
+	private boolean suppressDialogs = false;
+
+	public void setSuppressDialogs(boolean suppress) {
+		this.suppressDialogs = suppress;
+	}
 
 	// ──────────────────────────────────────────────────────────────────────────────
 	// Constructors
@@ -140,14 +146,15 @@ public class GameController implements NetworkTransport.Listener {
 			if (e instanceof VirtualMachineError)
 				throw (VirtualMachineError) e;
 			this.engine = null;
-			JOptionPane.showMessageDialog(null,
-					"Failed to start Serendipity engine.\n"
-							+ rootCauseMessage(e)
-							+ "\n\nMake sure Serendipity.jar is on the classpath, located at "
-							+ "Chess/engines/Serendipity.jar, or pass -Dserendipity.jar=/path/to/Serendipity.jar, "
-							+ "and run the app with --add-modules=jdk.incubator.vector.",
-					"Engine Error",
-					JOptionPane.ERROR_MESSAGE);
+			if (!suppressDialogs)
+				JOptionPane.showMessageDialog(null,
+						"Failed to start Serendipity engine.\n"
+								+ rootCauseMessage(e)
+								+ "\n\nMake sure Serendipity.jar is on the classpath, located at "
+								+ "Chess/engines/Serendipity.jar, or pass -Dserendipity.jar=/path/to/Serendipity.jar, "
+								+ "and run the app with --add-modules=jdk.incubator.vector.",
+						"Engine Error",
+						JOptionPane.ERROR_MESSAGE);
 		}
 	}
 
@@ -336,25 +343,25 @@ public class GameController implements NetworkTransport.Listener {
 
 		// block until connected in online mode
 		if (isOnline() && !networkReady) {
-			ChessFrame.getStatusPanel().setStatus("Waiting for opponent to connect…", Color.GRAY);
+			ChessPanel.getStatusPanel().setStatus("Waiting for opponent to connect…", Color.GRAY);
 			return;
 		}
 
 		// ignore after game over
 		if (gameState.isGameOver()) {
-			ChessFrame.getStatusPanel().setStatus("Game is over", Color.GRAY);
+			ChessPanel.getStatusPanel().setStatus("Game is over", Color.GRAY);
 			return;
 		}
 
 		// online: only allow clicks on your turn
 		if (isOnline() && localSide != null && gameState.getTurn() != localSide) {
-			ChessFrame.getStatusPanel().setStatus("Not your turn", Color.GRAY);
+			ChessPanel.getStatusPanel().setStatus("Not your turn", Color.GRAY);
 			return;
 		}
 
 		// AI: block input while the engine is to move
 		if (!isOnline() && engine != null && localSide != null && gameState.getTurn() != localSide) {
-			ChessFrame.getStatusPanel().setStatus("Engine thinking...", Color.GRAY);
+			ChessPanel.getStatusPanel().setStatus("Engine thinking...", Color.GRAY);
 			return;
 		}
 		selectOrMovePiece(pos);
@@ -460,10 +467,10 @@ public class GameController implements NetworkTransport.Listener {
 
 		Piece piece = gameState.getPieceAt(p);
 		if (gameState.isInCheck())
-			ChessFrame.getStatusPanel().setStatus("Turn: " + gameState.getTurn(), Color.MAGENTA);
+			ChessPanel.getStatusPanel().setStatus("Turn: " + gameState.getTurn(), Color.MAGENTA);
 		else
-			ChessFrame.getStatusPanel().setStatus("Turn: " + gameState.getTurn());
-		// ChessFrame.getStatusPanel().setStatus(
+			ChessPanel.getStatusPanel().setStatus("Turn: " + gameState.getTurn());
+		// ChessPanel.getStatusPanel().setStatus(
 		// "Selected: " + piece.getColor() + " " + piece.getClass().getSimpleName()
 		// + "[" + p.getRank() + ":" + p.getFile() + "]"
 		// );
@@ -545,7 +552,7 @@ public class GameController implements NetworkTransport.Listener {
 	 * Notifies the user of an illegal move attempt, clears any highlight/selection.
 	 */
 	private void showIllegalMove() {
-		ChessFrame.getStatusPanel().setStatus("Illegal move", Color.RED);
+		ChessPanel.getStatusPanel().setStatus("Illegal move", Color.RED);
 		// clear UI highlight + selection
 		clearHighlights();
 		selectedPosition = null; // drop selection after an illegal try
@@ -663,18 +670,20 @@ public class GameController implements NetworkTransport.Listener {
 			msg = "Game Over.";
 		}
 
-		ChessFrame.getStatusPanel().setStatus(msg, java.awt.Color.GREEN);
+		ChessPanel.getStatusPanel().setStatus(msg, java.awt.Color.GREEN);
 
 		java.awt.Window win = SwingUtilities.getWindowAncestor(boardPanel);
 		java.awt.Frame frame = (win instanceof java.awt.Frame) ? (java.awt.Frame) win : null;
 
-		new com.jeremyzay.zaychess.view.gui.GameOverDialog(
-				frame,
-				"Game Over",
-				msg,
-				winner,
-				this::restartGame,
-				this::returnToMenu);
+		if (!suppressDialogs) {
+			new com.jeremyzay.zaychess.view.gui.GameOverDialog(
+					frame,
+					"Game Over",
+					msg,
+					winner,
+					this::restartGame,
+					this::returnToMenu);
+		}
 	}
 
 	private void restartGame() {
@@ -685,7 +694,7 @@ public class GameController implements NetworkTransport.Listener {
 		// Clear history/logs
 		history.clear();
 		wireLog.clear();
-		com.jeremyzay.zaychess.view.gui.ChessFrame.getMoveListPanel().clearMoves();
+		com.jeremyzay.zaychess.view.gui.ChessPanel.getMoveListPanel().clearMoves();
 
 		// Update Board UI
 		if (boardPanel != null) {
@@ -700,7 +709,7 @@ public class GameController implements NetworkTransport.Listener {
 			boardPanel.updateBoard(gameState.getBoard());
 		}
 
-		ChessFrame.getStatusPanel().setStatus("Turn: " + gameState.getTurn());
+		ChessPanel.getStatusPanel().setStatus("Turn: " + gameState.getTurn());
 
 		// Restart Engine if active
 		if (isUsingEngine()) {
@@ -717,7 +726,7 @@ public class GameController implements NetworkTransport.Listener {
 		java.awt.Window win = SwingUtilities.getWindowAncestor(boardPanel);
 		if (win != null)
 			win.dispose();
-		SwingUtilities.invokeLater(() -> new com.jeremyzay.zaychess.view.gui.MainMenuFrame().setVisible(true));
+		SwingUtilities.invokeLater(() -> MainFrame.getInstance().showMenu());
 	}
 
 	/**
@@ -726,14 +735,14 @@ public class GameController implements NetworkTransport.Listener {
 	 */
 	private void updatePostMoveUi() {
 		if (gameState.isInCheck()) {
-			ChessFrame.getStatusPanel().setStatus(gameState.getTurn() + " is in check!", java.awt.Color.MAGENTA);
+			ChessPanel.getStatusPanel().setStatus(gameState.getTurn() + " is in check!", java.awt.Color.MAGENTA);
 			// Highlight King in check
 			Position kingPos = gameState.getBoard().findKing(gameState.getTurn());
 			if (kingPos != null && boardPanel != null) {
 				boardPanel.setHighlight(kingPos, com.jeremyzay.zaychess.view.gui.theme.HighlightType.CHECK, true);
 			}
 		} else {
-			ChessFrame.getStatusPanel().setReady(gameState);
+			ChessPanel.getStatusPanel().setReady(gameState);
 			// Clear check highlights
 			if (boardPanel != null) {
 				boardPanel.clearHighlights(com.jeremyzay.zaychess.view.gui.theme.HighlightType.CHECK);
@@ -792,7 +801,7 @@ public class GameController implements NetworkTransport.Listener {
 	 */
 
 	public void dispatchMoveInfo(String info) {
-		ChessFrame.getMoveListPanel().appendMove(info);
+		ChessPanel.getMoveListPanel().appendMove(info);
 		moveLog.add(info);
 	}
 
@@ -839,7 +848,7 @@ public class GameController implements NetworkTransport.Listener {
 		// remove last line from the move list
 		if (!moveLog.isEmpty()) {
 			String last = moveLog.remove(moveLog.size() - 1);
-			ChessFrame.getMoveListPanel().removeMove(moveLog, last);
+			ChessPanel.getMoveListPanel().removeMove(moveLog, last);
 		}
 	}
 

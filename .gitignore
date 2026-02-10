@@ -8,4 +8,4 @@ bin/
 *.log
 *.sh
 !build-mac-pkg-mas-12-lic.sh
-!make_icns.sh
+!make_icns.shlib/

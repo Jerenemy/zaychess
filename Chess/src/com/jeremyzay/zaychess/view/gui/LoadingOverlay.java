@@ -55,19 +55,41 @@ public class LoadingOverlay extends JPanel {
     }
 
     private JButton createCancelButton() {
-        JButton btn = new JButton("Cancel");
+        JButton btn = new JButton("Cancel") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // base + hover/press alpha
+                float alpha = 0.20f;
+                ButtonModel m = getModel();
+                if (m.isRollover())
+                    alpha = 0.40f;
+                if (m.isPressed())
+                    alpha = 0.60f;
+
+                g2.setComposite(AlphaComposite.SrcOver.derive(alpha));
+                g2.setColor(Color.WHITE);
+                int arc = 20; // rounded corners
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
+                g2.dispose();
+
+                super.paintComponent(g);
+            }
+        };
+
         btn.setFont(new Font("SansSerif", Font.BOLD, 14));
         btn.setForeground(Color.WHITE);
         btn.setFocusPainted(false);
-        btn.setBorderPainted(true);
+        btn.setBorderPainted(false);
         btn.setContentAreaFilled(false);
         btn.setOpaque(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        // Custom styling
-        btn.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(255, 255, 255, 100), 1, true),
-                BorderFactory.createEmptyBorder(8, 24, 8, 24)));
+        // Sizing
+        btn.setPreferredSize(new Dimension(140, 40));
+
         return btn;
     }
 

@@ -54,7 +54,8 @@ public class GameLauncher {
 
     public static void launchOnline(GameState gameState, GameController controller,
             JDialog waitingDialog,
-            java.util.concurrent.atomic.AtomicReference<RelayClient> clientRef) {
+            java.util.concurrent.atomic.AtomicReference<RelayClient> clientRef,
+            java.util.concurrent.atomic.AtomicBoolean cancelled) {
         try {
             String relayHost = System.getenv("ZAYCHESS_RELAY_SERVER");
             if (relayHost == null || relayHost.isBlank()) {
@@ -62,14 +63,27 @@ public class GameLauncher {
             }
             int relayPort = 8080;
 
+            if (cancelled.get())
+                return;
+
             RelayClient client = new RelayClient(relayHost, relayPort);
             if (clientRef != null) {
                 clientRef.set(client);
             }
 
+            // Check cancellation again after potentially slow connection setup
+            if (cancelled.get()) {
+                client.close();
+                return;
+            }
+
             client.setMatchmakingListener(new RelayClient.MatchmakingListener() {
                 @Override
                 public void onMatchFound(boolean isHost) {
+                    if (cancelled.get()) {
+                        client.close();
+                        return;
+                    }
                     System.out.println("Match found! I am " + (isHost ? "HOST (White)" : "CLIENT (Black)"));
                     client.setMatchmakingListener(null);
                     controller.setLocalSide(isHost ? PlayerColor.WHITE : PlayerColor.BLACK);
@@ -86,6 +100,8 @@ public class GameLauncher {
 
                 @Override
                 public void onMatchmakingError(String msg) {
+                    if (cancelled.get())
+                        return;
                     System.err.println("Matchmaking error: " + msg);
                     SwingUtilities.invokeLater(() -> {
                         if (waitingDialog != null)
@@ -98,9 +114,15 @@ public class GameLauncher {
                 }
             });
 
+            if (cancelled.get()) {
+                client.close();
+                return;
+            }
             client.start();
 
         } catch (Exception e) {
+            if (cancelled.get())
+                return;
             e.printStackTrace();
             SwingUtilities.invokeLater(() -> {
                 if (waitingDialog != null)

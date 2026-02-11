@@ -73,11 +73,16 @@ public class MainFrame extends JFrame {
         setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
 
         new Thread(() -> {
-            if (controller != null) {
-                System.out.println("[DEBUG] Stopping engine/network in background...");
-                controller.detachNetwork();
-                controller.stopEngine();
-                System.out.println("[DEBUG] Engine/network stopped.");
+            try {
+                if (controller != null) {
+                    System.out.println("[DEBUG] Stopping engine/network in background...");
+                    controller.detachNetwork();
+                    controller.stopEngine();
+                    System.out.println("[DEBUG] Engine/network stopped.");
+                }
+            } catch (Throwable t) {
+                System.err.println("Error during game session reset cleanup:");
+                t.printStackTrace();
             }
 
             SwingUtilities.invokeLater(() -> {
@@ -144,18 +149,23 @@ public class MainFrame extends JFrame {
         overlay.start();
 
         new Thread(() -> {
-            bgTask.run();
-            SwingUtilities.invokeLater(() -> {
-                overlay.stop();
-                overlay.setVisible(false);
-                // Restore blank glass pane
-                JPanel blank = new JPanel();
-                blank.setOpaque(false);
-                blank.setVisible(false);
-                setGlassPane(blank);
-                if (onDone != null)
-                    onDone.run();
-            });
+            try {
+                bgTask.run();
+            } catch (Throwable t) {
+                t.printStackTrace();
+            } finally {
+                SwingUtilities.invokeLater(() -> {
+                    overlay.stop();
+                    overlay.setVisible(false);
+                    // Restore blank glass pane
+                    JPanel blank = new JPanel();
+                    blank.setOpaque(false);
+                    blank.setVisible(false);
+                    setGlassPane(blank);
+                    if (onDone != null)
+                        onDone.run();
+                });
+            }
         }).start();
     }
 
@@ -310,9 +320,12 @@ public class MainFrame extends JFrame {
     public void startOnlineMatchmaking() {
         resetGameSessionAsync(() -> {
             java.util.concurrent.atomic.AtomicReference<com.jeremyzay.zaychess.services.infrastructure.network.RelayClient> clientRef = new java.util.concurrent.atomic.AtomicReference<>();
+            java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean(false);
 
             final LoadingOverlay[] holder = { null };
             holder[0] = new LoadingOverlay("Waiting for opponent...", e -> {
+                cancelled.set(true);
+
                 com.jeremyzay.zaychess.services.infrastructure.network.RelayClient client = clientRef.get();
                 if (client != null) {
                     client.close();
@@ -334,7 +347,7 @@ public class MainFrame extends JFrame {
             loadingOverlay.start();
 
             new Thread(() -> {
-                GameLauncher.launchOnline(gameState, controller, null, clientRef);
+                GameLauncher.launchOnline(gameState, controller, null, clientRef, cancelled);
             }).start();
         });
     }

@@ -94,8 +94,8 @@ sudo ufw allow 8080/tcp
 - [x] Undo move against AI
 - [x] Drag-and-Drop Support
 - [ ] Scaled difficulty AI
-- [ ] Captured pieces display
-- [ ] improve ui of captured pieces panel
-- make buttons with squircles
+- [x] Captured pieces display
+- [x] improve ui of captured pieces panel
+- [x] make buttons with squircles
 - [ ] Clock functionality
 - [ ] Theme selection UI

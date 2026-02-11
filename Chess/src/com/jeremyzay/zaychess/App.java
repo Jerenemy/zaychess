@@ -3,14 +3,12 @@ package com.jeremyzay.zaychess;
 import javax.swing.SwingUtilities;
 
 import com.jeremyzay.zaychess.view.gui.MainFrame;
-import com.jeremyzay.zaychess.view.gui.ResourceLoader;
 
 public class App {
     /**
      * Entry point for the Chess application.
      */
 
-    @SuppressWarnings("resource")
     public static void main(String[] args) {
         try {
             javax.swing.UIManager.setLookAndFeel(javax.swing.UIManager.getSystemLookAndFeelClassName());
@@ -20,7 +18,6 @@ public class App {
 
         try {
             SwingUtilities.invokeLater(() -> {
-                ResourceLoader.preload();
                 new MainFrame().setVisible(true);
             });
         } catch (Exception e) {

@@ -1,35 +1,15 @@
 package com.jeremyzay.zaychess.view.gui;
 
-import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 
 import com.jeremyzay.zaychess.model.pieces.Piece;
 
-import java.awt.image.BufferedImage;
-import java.io.InputStream;
 import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.io.IOException;
 import java.awt.Image;
 
 public final class ResourceLoader {
-    private static final String MAIN_MENU_BG_PATH = "/com/jeremyzay/zaychess/view/assets/main_menu_background.png";
-
-    public static BufferedImage MAIN_MENU_BACKGROUND;
-
-    public static synchronized void preload() {
-        if (MAIN_MENU_BACKGROUND != null)
-            return;
-        try (InputStream in = ResourceLoader.class.getResourceAsStream(MAIN_MENU_BG_PATH)) {
-            if (in == null) {
-                throw new IllegalStateException("Resource not found: " + MAIN_MENU_BG_PATH);
-            }
-            MAIN_MENU_BACKGROUND = ImageIO.read(in);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to load " + MAIN_MENU_BG_PATH, e);
-        }
-    }
 
     private static final Map<String, ImageIcon> ICON_CACHE = new ConcurrentHashMap<>();
 

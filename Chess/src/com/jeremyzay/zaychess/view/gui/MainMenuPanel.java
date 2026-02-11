@@ -173,10 +173,13 @@ public class MainMenuPanel extends JPanel {
 
     private void initToyInteractivity() {
         MouseAdapter ma = new MouseAdapter() {
+            private Point getPanelPoint(MouseEvent e) {
+                return SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), MainMenuPanel.this);
+            }
+
             @Override
             public void mousePressed(MouseEvent e) {
-                // Check if we hit a piece
-                Point p = e.getPoint();
+                Point p = getPanelPoint(e);
                 for (MenuPiece mp : menuPieces) {
                     if (mp.getBounds().contains(p)) {
                         draggedPiece = mp;
@@ -196,14 +199,16 @@ public class MainMenuPanel extends JPanel {
                     double dist = e.getLocationOnScreen().distance(pressPointScreen);
                     if (dist > TOY_DRAG_THRESHOLD) {
                         isDraggingToy = true;
+
+                        // Robust Attachment: Re-attach to the frame every time we start a drag.
+                        // This prevents dragging from breaking if showMenu() replaced the glass pane.
                         if (dragGlassPane == null) {
                             dragGlassPane = new DragGlassPane();
-                            MainFrame.getInstance().setGlassPane(dragGlassPane);
                         }
+                        MainFrame.getInstance().setGlassPane(dragGlassPane);
                         dragGlassPane.setVisible(true);
 
                         int size = draggedPiece.getSize();
-                        // Convert local center to glass pane
                         Point centerLocal = new Point((int) draggedPiece.getBounds().getCenterX(),
                                 (int) draggedPiece.getBounds().getCenterY());
                         Point originOnGlass = SwingUtilities.convertPoint(MainMenuPanel.this, centerLocal,
@@ -224,7 +229,7 @@ public class MainMenuPanel extends JPanel {
             @Override
             public void mouseReleased(MouseEvent e) {
                 if (isDraggingToy && dragGlassPane != null) {
-                    dragGlassPane.endDrag(false); // Animate snap back
+                    dragGlassPane.endDrag(false);
 
                     final MenuPiece pieceToRestore = draggedPiece;
                     Timer restoreTimer = new Timer(200, ex -> {
@@ -244,8 +249,15 @@ public class MainMenuPanel extends JPanel {
                 isDraggingToy = false;
             }
         };
+
+        // Add listeners to panel and decoration areas to ensure pieces in squares are
+        // hittable
         addMouseListener(ma);
         addMouseMotionListener(ma);
+        centerPanel.addMouseListener(ma);
+        centerPanel.addMouseMotionListener(ma);
+        southPanel.addMouseListener(ma);
+        southPanel.addMouseMotionListener(ma);
     }
 
     @Override

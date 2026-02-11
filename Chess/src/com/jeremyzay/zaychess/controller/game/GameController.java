@@ -793,10 +793,13 @@ public class GameController implements NetworkTransport.Listener {
 	 * Also highlights the King if in check.
 	 */
 	private void updatePostMoveUi() {
+		// Update captured pieces score
+		ChessPanel.getCapturedPiecesPanel().updateScore(gameState.getBoard());
+
 		if (gameState.isInCheck()) {
 			ChessPanel.getStatusPanel().setStatus(gameState.getTurn() + " is in check!", java.awt.Color.MAGENTA);
 			// Highlight King in check
-			Position kingPos = gameState.getBoard().findKing(gameState.getTurn());
+			com.jeremyzay.zaychess.model.util.Position kingPos = gameState.getBoard().findKing(gameState.getTurn());
 			if (kingPos != null && boardPanel != null) {
 				boardPanel.setHighlight(kingPos, com.jeremyzay.zaychess.view.gui.theme.HighlightType.CHECK, true);
 			}
@@ -962,9 +965,30 @@ public class GameController implements NetworkTransport.Listener {
 		Move redoMove = history.peekRedoMove();
 		if (redoMove == null)
 			return;
+
+		// Detect capture before redoing (same logic as applyMoveAndNotify)
+		Piece capturedPiece = null;
+		if (redoMove.getMoveType() == com.jeremyzay.zaychess.model.move.MoveType.EN_PASSANT) {
+			int epRank = redoMove.getToPos().getRank();
+			int epFile = redoMove.getToPos().getFile();
+			com.jeremyzay.zaychess.model.util.PlayerColor moverColor = gameState.getPieceColorAt(redoMove.getFromPos());
+			int capturedRank = (moverColor == com.jeremyzay.zaychess.model.util.PlayerColor.WHITE) ? epRank + 1
+					: epRank - 1;
+			capturedPiece = gameState.getPieceAt(capturedRank, epFile);
+		} else {
+			capturedPiece = gameState.getPieceAt(redoMove.getToPos());
+		}
+
 		String san = NotationSAN.toSAN(gameState, redoMove);
 
 		history.redo(gameState); // reapplies the move
+
+		// Update capture log and UI
+		captureLog.add(capturedPiece);
+		if (capturedPiece != null) {
+			ChessPanel.getCapturedPiecesPanel().addCapturedPiece(capturedPiece);
+		}
+
 		if (boardPanel != null)
 			boardPanel.updateBoard(gameState.getBoard());
 		updatePostMoveUi();

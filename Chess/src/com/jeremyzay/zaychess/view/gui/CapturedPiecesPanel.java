@@ -114,6 +114,41 @@ public class CapturedPiecesPanel extends JPanel {
         refreshDisplay();
     }
 
+    public void updateScore(com.jeremyzay.zaychess.model.board.Board board) {
+        int whiteMaterial = 0;
+        int blackMaterial = 0;
+
+        for (int r = 0; r < 8; r++) {
+            for (int c = 0; c < 8; c++) {
+                Piece p = board.getPieceAt(r, c);
+                if (p != null) {
+                    if (p.getColor() == PlayerColor.WHITE) {
+                        whiteMaterial += pieceValue(p);
+                    } else {
+                        blackMaterial += pieceValue(p);
+                    }
+                }
+            }
+        }
+
+        int diff = whiteMaterial - blackMaterial;
+        String whiteAdv = diff > 0 ? "  (+" + diff + ")" : "";
+        String blackAdv = diff < 0 ? "  (+" + (-diff) + ")" : "";
+
+        // "Captured by White" means white took these pieces.
+        // But the score usually sits next to the player who HAS the advantage.
+        // Usually:
+        // Top list: Pieces White Lost (Captured by Black). Label: "Captured by Black"
+        // Bottom list: Pieces Black Lost (Captured by White). Label: "Captured by
+        // White"
+        //
+        // If White has advantage, valid on bottom?
+        // Let's stick to the current label placement but update the numbers.
+
+        blackLabel.setText("Captured by White" + whiteAdv);
+        whiteLabel.setText("Captured by Black" + blackAdv);
+    }
+
     private void refreshDisplay() {
         blackCapturedPanel.removeAll();
         whiteCapturedPanel.removeAll();
@@ -131,15 +166,6 @@ public class CapturedPiecesPanel extends JPanel {
         for (Piece p : sortedWhite) {
             whiteCapturedPanel.add(createPieceLabel(p));
         }
-
-        // Update point differential
-        int whiteMaterial = whiteCaptured.stream().mapToInt(CapturedPiecesPanel::pieceValue).sum();
-        int blackMaterial = blackCaptured.stream().mapToInt(CapturedPiecesPanel::pieceValue).sum();
-        int diff = blackMaterial - whiteMaterial;
-        String whiteAdv = diff > 0 ? "  (+" + diff + ")" : "";
-        String blackAdv = diff < 0 ? "  (+" + (-diff) + ")" : "";
-        blackLabel.setText("Captured by White" + whiteAdv);
-        whiteLabel.setText("Captured by Black" + blackAdv);
 
         revalidate();
         repaint();

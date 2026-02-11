@@ -7,8 +7,9 @@ import java.util.List;
 import javax.swing.*;
 
 /**
- * Revamped minimalist main menu with Dynamic Scaling.
- * All components (title, buttons, stripes) resize proportionally to the window.
+ * Revamped minimalist main menu with Robust Dynamic Scaling.
+ * Guaranteed to fit even in wide/short windows by calculating scale based on
+ * actual available height after decorations.
  */
 public class MainMenuPanel extends JPanel {
 
@@ -24,9 +25,10 @@ public class MainMenuPanel extends JPanel {
     private static final Color[] STRIPE_ABOVE_SEQ = { BLACK, WHITE };
     private static final Color[] STRIPE_BOTTOM_SEQ = { WHITE, BLACK };
 
-    // --- Scaling Constants ---
+    // --- Scaling Reference Values ---
     private static final int REF_W = 1200;
-    private static final int REF_H = 800;
+    private static final int REF_MENU_H = 480; // Estimated height of (Title + 4 Buttons + Insets) at scale 1.0
+    private static final float MIN_SCALE = 0.1f; // User adjustable floor
 
     // --- Dynamic State ---
     private float scale = 1.0f;
@@ -66,32 +68,50 @@ public class MainMenuPanel extends JPanel {
     private void updateScaling() {
         int w = getWidth();
         int h = getHeight();
-        if (w == 0 || h == 0)
+        if (w <= 0 || h <= 0)
             return;
 
-        // Calculate Scale Factor (proportional to reference size)
-        float sw = (float) w / REF_W;
-        float sh = (float) h / REF_H;
-        scale = Math.min(sw, sh);
-        if (scale < 0.4f)
-            scale = 0.4f; // Minimum floor
+        // 1. Determine Fixed Decoration Heights
+        // North stripes height: 4 strips * 6px (nominal) * scale
+        // We'll use a rough initial scale of w/REF_W for the decoration "greed"
+        float tempScale = (float) w / REF_W;
+        if (tempScale < MIN_SCALE)
+            tempScale = MIN_SCALE;
 
-        // 1. Scale Stripes
-        int baseStripH = (int) (6 * scale);
-        if (baseStripH < 2)
-            baseStripH = 2;
+        int nH = (int) (6 * tempScale) * STRIPE_NORTH_SEQ.length;
+        int checkH = w / 8; // Checkerboard greedy squares
+        int sH = checkH + (int) (6 * tempScale) * (STRIPE_ABOVE_SEQ.length + STRIPE_BOTTOM_SEQ.length);
 
-        stripeNorth.setPreferredSize(new Dimension(0, baseStripH * STRIPE_NORTH_SEQ.length));
-        stripeAbove.setPreferredSize(new Dimension(0, baseStripH * STRIPE_ABOVE_SEQ.length));
-        stripeBottom.setPreferredSize(new Dimension(0, baseStripH * STRIPE_BOTTOM_SEQ.length));
+        // 2. Calculate Available Height for Menu
+        int availableMenuH = h - nH - sH;
 
-        // 2. Scale Title
+        // 3. Compute Scaling Factor to fit available height
+        float scaleH = (float) availableMenuH / REF_MENU_H;
+        float scaleW = (float) w / REF_W;
+
+        // Final scale is limited by width but MUST respect available height
+        scale = Math.min(scaleW, scaleH);
+        if (scale < MIN_SCALE)
+            scale = MIN_SCALE;
+
+        // --- Apply Scaling ---
+
+        // 1. Stripes (Update to actual scale)
+        int finalStripeH = (int) (6 * scale);
+        if (finalStripeH < 1)
+            finalStripeH = 1;
+        stripeNorth.setPreferredSize(new Dimension(0, finalStripeH * STRIPE_NORTH_SEQ.length));
+        stripeAbove.setPreferredSize(new Dimension(0, finalStripeH * STRIPE_ABOVE_SEQ.length));
+        stripeBottom.setPreferredSize(new Dimension(0, finalStripeH * STRIPE_BOTTOM_SEQ.length));
+
+        // 2. Title
         titleLabel.setFont(new Font("SansSerif", Font.BOLD, (int) (64 * scale)));
 
-        // 3. Scale Buttons
-        Dimension btnAlloc = new Dimension((int) (300 * scale), (int) (74 * scale));
+        // 3. Buttons
+        // Slightly smaller base size for better balance: 260x64
+        Dimension btnAlloc = new Dimension((int) (260 * scale), (int) (66 * scale));
         for (JButton btn : buttons) {
-            btn.setFont(new Font("SansSerif", Font.BOLD, (int) (22 * scale)));
+            btn.setFont(new Font("SansSerif", Font.BOLD, (int) (20 * scale)));
             btn.setPreferredSize(btnAlloc);
             btn.setMinimumSize(btnAlloc);
             btn.setMaximumSize(btnAlloc);
@@ -105,7 +125,7 @@ public class MainMenuPanel extends JPanel {
 
         for (JButton btn : buttons) {
             GridBagConstraints gbcBtn = gbl.getConstraints(btn);
-            gbcBtn.insets = new Insets((int) (10 * scale), 0, (int) (10 * scale), 0);
+            gbcBtn.insets = new Insets((int) (8 * scale), 0, (int) (8 * scale), 0);
             gbl.setConstraints(btn, gbcBtn);
         }
 
@@ -120,12 +140,13 @@ public class MainMenuPanel extends JPanel {
                 super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g;
                 int w = getWidth();
-                int h = getHeight() / seq.length;
+                int totalH = getHeight();
+                int h = totalH / seq.length;
                 if (h < 1)
                     h = 1;
                 for (int i = 0; i < seq.length; i++) {
                     g2.setColor(seq[i]);
-                    g2.fillRect(0, i * h, w, h);
+                    g2.fillRect(0, i * h, w, (i == seq.length - 1) ? totalH - (i * h) : h);
                 }
             }
         };
@@ -165,7 +186,7 @@ public class MainMenuPanel extends JPanel {
         stripeAbove = createStripePanel(STRIPE_ABOVE_SEQ);
         panel.add(stripeAbove, BorderLayout.NORTH);
 
-        JPanel checkerboard = new JPanel() {
+        final JPanel checkerboard = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
@@ -181,22 +202,21 @@ public class MainMenuPanel extends JPanel {
 
             @Override
             public Dimension getPreferredSize() {
-                Container parent = getParent();
+                Container parent = getTopLevelAncestor();
                 int w = (parent != null) ? parent.getWidth() : 800;
+                // Keep squares: height = width / 8
                 return new Dimension(w, Math.max(1, w / 8));
             }
         };
 
-        checkerboard.addComponentListener(new ComponentAdapter() {
+        this.addComponentListener(new ComponentAdapter() {
+            @Override
             public void componentResized(ComponentEvent e) {
-                int w = checkerboard.getWidth();
-                int h = Math.max(1, w / 8);
-                if (checkerboard.getPreferredSize().height != h) {
-                    checkerboard.setPreferredSize(new Dimension(w, h));
-                    checkerboard.revalidate();
-                }
+                checkerboard.invalidate();
+                panel.revalidate();
             }
         });
+
         panel.add(checkerboard, BorderLayout.CENTER);
 
         stripeBottom = createStripePanel(STRIPE_BOTTOM_SEQ);
@@ -220,8 +240,8 @@ public class MainMenuPanel extends JPanel {
                 boolean hover = m.isRollover();
                 boolean press = m.isPressed();
 
-                // Expansion: ~5% on hover
-                float expansion = hover ? 1.05f : 1.0f;
+                // Expansion: 6% on hover (scaled)
+                float expansion = hover ? 1.06f : 1.0f;
                 int curW = (int) (w * 0.94f * expansion);
                 int curH = (int) (h * 0.85f * expansion);
 

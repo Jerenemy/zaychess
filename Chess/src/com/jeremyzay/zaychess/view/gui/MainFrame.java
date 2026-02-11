@@ -22,6 +22,7 @@ public class MainFrame extends JFrame {
 
     public static final String VIEW_MENU = "MENU";
     public static final String VIEW_GAME = "GAME";
+    public static final String VIEW_LOADING = "LOADING";
 
     public MainFrame() {
         super("ZayChess");
@@ -68,66 +69,68 @@ public class MainFrame extends JFrame {
 
     // --- Game Lifecycle Methods ---
 
-    public void startLocalGame() {
-        // Reset state logic? GameLauncher.launch does just 'new ChessFrame'.
-        // GameController.restartGame() resets logic.
-        // Better: new GameState/Controller or reuse?
-        // Let's reset.
-        gameState.restoreFrom(new GameState());
-        try {
-            // Rebuild a fresh controller to be safe? Or reuse?
-            // GameController has state. Reuse is okay if we reset.
-            // controller = new GameController(gameState, null); // If we recreate, we lose
-            // history ref?
-            // Let's rely on reuse + reset for now or recreate if cheap.
-            // Recreating is ensuring clean state.
-            controller = new GameController(gameState, null);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    private void resetGameSessionAsync(Runnable onComplete) {
+        System.out.println("[DEBUG] resetGameSessionAsync called.");
+        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
 
-        GameLauncher.launch(gameState, controller);
+        // 1. Cleanup Old (Background)
+        new Thread(() -> {
+            if (controller != null) {
+                System.out.println("[DEBUG] Stopping engine/network in background...");
+                controller.detachNetwork();
+                controller.stopEngine();
+                System.out.println("[DEBUG] Engine/network stopped.");
+            }
+
+            // 2. Setup New (EDT)
+            SwingUtilities.invokeLater(() -> {
+                System.out.println("[DEBUG] Finishing reset on EDT...");
+                gameState.restoreFrom(new GameState());
+                try {
+                    controller = new GameController(gameState, null);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+
+                ChessPanel.getStatusPanel().setStatus("Ready");
+                ChessPanel.getMoveListPanel().clearMoves();
+
+                setCursor(Cursor.getDefaultCursor());
+
+                if (onComplete != null) {
+                    onComplete.run();
+                }
+            });
+        }).start();
+    }
+
+    public void startLocalGame() {
+        resetGameSessionAsync(() -> {
+            GameLauncher.launch(gameState, controller);
+        });
     }
 
     // Called by GameLauncher
     public void switchToGame(JPanel gamePanel) {
-        // Remove old game view if exists?
-        // For CardLayout to be dynamic, we can remove/add.
-        // Or simpler: We always name it VIEW_GAME and replace it.
-        // Check if VIEW_GAME exists in layout? CardLayout doesn't easily expose this.
-        // But mainPanel.add(comp, "GAME") replaces if same name? No, it adds a new
-        // card.
-        // We should remove the old one if we want to save memory/cleanup.
-
-        // remove old "GAME" component if possible.
-        // Iterate components?
-        for (Component c : mainPanel.getComponents()) {
-            // How to identify? We can keep a ref.
-        }
-        // Let's just add and show. If we overwrite name "GAME", does CardLayout
-        // replace?
-        // AWT CardLayout: "If a component is added to a container that uses CardLayout,
-        // and a component with the same name was previously added, the new component
-        // replaces the old one." -> YES!
-
+        // ... (existing logic)
         mainPanel.add(gamePanel, VIEW_GAME);
         showView(VIEW_GAME);
     }
 
     public void startVsComputer() {
-        // Reset first
-        gameState.restoreFrom(new GameState());
-        try {
-            controller = new GameController(gameState, null);
-        } catch (Exception e) {
-        }
-
-        controller.setEngine();
-        if (!controller.isUsingEngine())
-            return;
-
-        // Show side selection dialog
-        showAISideSelectionDialog();
+        resetGameSessionAsync(() -> {
+            // setEngine involves I/O and might block, so run it in background too
+            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+            new Thread(() -> {
+                controller.setEngine();
+                SwingUtilities.invokeLater(() -> {
+                    setCursor(Cursor.getDefaultCursor());
+                    if (controller.isUsingEngine()) {
+                        showAISideSelectionDialog();
+                    }
+                });
+            }).start();
+        });
     }
 
     private void showAISideSelectionDialog() {
@@ -164,9 +167,14 @@ public class MainFrame extends JFrame {
     }
 
     private void launchEngineGame(PlayerColor humanSide) {
+        // GameLauncher.launch is already called in startVsComputer? No, that was
+        // creating controller.
+        // Wait, startVsComputer calls reset -> setEngine -> showDialog.
+        // Dialog calls launchEngineGame.
+        // We need to launch here.
         GameLauncher.launch(gameState, controller);
         controller.startEngineGame(humanSide);
-        ChessPanel.getMoveListPanel().clearMoves();
+        // ChessPanel.getMoveListPanel().clearMoves(); // Already cleared in reset
     }
 
     public void loadLocalGame() {
@@ -185,45 +193,36 @@ public class MainFrame extends JFrame {
                 JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
 
         if (choice == 0) {
-            try {
-                // Recreate controller/state
-                gameState.restoreFrom(new GameState());
-                controller = new GameController(gameState, null);
-
-                GameLauncher.launch(gameState, controller);
-                ChessPanel.getMoveListPanel().clearMoves();
-                new SaveManager(controller).loadGame(selectedFile);
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Error loading: " + ex.getMessage());
-            }
-        } else if (choice == 1) {
-            // Load vs AI
-            // We need to set up engine, select side, then load
-            // showAISideSelectionDialogForLoad(selectedFile);
-            // ... simplifying for implementation plan
-            // Reusing logic:
-            try {
-                gameState.restoreFrom(new GameState());
-                controller = new GameController(gameState, null);
-                controller.setEngine();
-                if (controller.isUsingEngine()) {
-                    // Reuse/Duplicate side selection logic for load?
-                    // For brevity, let's just trigger load then engine.
-                    // But side selection matters.
-                    // Let's implementation later or skip complex load-vs-ai flow for this refactor
-                    // step if possible?
-                    // User said "do not change any of how the app looks". Functionality should
-                    // remain.
-                    // I will implement simple version or copy logic.
-                    showAISideSelectionDialogForLoad(selectedFile);
+            resetGameSessionAsync(() -> {
+                try {
+                    GameLauncher.launch(gameState, controller);
+                    new SaveManager(controller).loadGame(selectedFile);
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this, "Error loading: " + ex.getMessage());
                 }
-            } catch (Exception e) {
-            }
+            });
+        } else if (choice == 1) {
+            resetGameSessionAsync(() -> {
+                try {
+                    // setEngine might be slow
+                    setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+                    new Thread(() -> {
+                        controller.setEngine();
+                        SwingUtilities.invokeLater(() -> {
+                            setCursor(Cursor.getDefaultCursor());
+                            if (controller.isUsingEngine()) {
+                                showAISideSelectionDialogForLoad(selectedFile);
+                            }
+                        });
+                    }).start();
+                } catch (Exception e) {
+                }
+            });
         }
     }
 
     private void showAISideSelectionDialogForLoad(java.io.File file) {
-        // Copy of showAISideSelectionDialog but calls finishLoadVsAI
+        // ... (existing implementation)
         JDialog dialog = new JDialog(this, "Choose Your Side", true);
         dialog.setLayout(new BorderLayout());
 
@@ -260,7 +259,7 @@ public class MainFrame extends JFrame {
     private void finishLoadVsAI(java.io.File file, PlayerColor humanSide) {
         try {
             GameLauncher.launch(gameState, controller);
-            ChessPanel.getMoveListPanel().clearMoves();
+            // moves cleared in reset
             new SaveManager(controller).loadGame(file);
 
             // Sync engine
@@ -273,26 +272,29 @@ public class MainFrame extends JFrame {
     }
 
     public void startOnlineMatchmaking() {
-        JDialog waitingDialog = openWaitingDialog("Waiting for opponent...");
-        java.util.concurrent.atomic.AtomicReference<com.jeremyzay.zaychess.services.infrastructure.network.RelayClient> clientRef = new java.util.concurrent.atomic.AtomicReference<>();
+        resetGameSessionAsync(() -> {
+            // Create atomic ref for the client so we can cancel it
+            java.util.concurrent.atomic.AtomicReference<com.jeremyzay.zaychess.services.infrastructure.network.RelayClient> clientRef = new java.util.concurrent.atomic.AtomicReference<>();
 
-        waitingDialog.addWindowListener(new java.awt.event.WindowAdapter() {
-            @Override
-            public void windowClosing(java.awt.event.WindowEvent e) {
+            LoadingOverlay loadingOverlay = new LoadingOverlay("Waiting for opponent...", e -> {
                 com.jeremyzay.zaychess.services.infrastructure.network.RelayClient client = clientRef.get();
                 if (client != null) {
                     client.close();
                 }
-            }
+                showMenu(); // Return to menu on cancel
+            });
+
+            addView(VIEW_LOADING, loadingOverlay);
+            showView(VIEW_LOADING);
+            loadingOverlay.start();
+
+            new Thread(() -> {
+                GameLauncher.launchOnline(gameState, controller, null, clientRef);
+            }).start();
         });
-
-        SwingUtilities.invokeLater(() -> waitingDialog.setVisible(true));
-
-        new Thread(() -> {
-            GameLauncher.launchOnline(gameState, controller, waitingDialog, clientRef);
-        }).start();
     }
 
+    // kept for reference or other uses
     private JDialog openWaitingDialog(String title) {
         JDialog dialog = new JDialog(this, title, false);
         JProgressBar progressBar = new JProgressBar();

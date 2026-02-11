@@ -3,7 +3,6 @@ package com.jeremyzay.zaychess.view.gui;
 import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.geom.Arc2D;
-import java.awt.geom.Ellipse2D;
 import javax.swing.*;
 
 /**
@@ -18,13 +17,11 @@ public class LoadingOverlay extends JPanel {
     private static final long serialVersionUID = 1L;
 
     private final String message;
-    private final ActionListener cancelAction;
     private Timer animationTimer;
     private float angle = 0f;
 
     public LoadingOverlay(String message, ActionListener cancelAction) {
         this.message = message;
-        this.cancelAction = cancelAction;
 
         setOpaque(false);
         setLayout(new GridBagLayout());

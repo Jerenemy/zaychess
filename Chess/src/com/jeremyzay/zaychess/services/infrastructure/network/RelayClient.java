@@ -128,6 +128,17 @@ public class RelayClient implements NetworkTransport {
             }
             System.out.println("[RelayClient] Server closed connection.");
         } catch (IOException e) {
+            // Ignore if closed intentionally
+            if (socket != null && socket.isClosed()) {
+                System.out.println("[RelayClient] Socket closed.");
+                return;
+            }
+            // For SocketException: 'Socket closed' message
+            if ("Socket closed".equals(e.getMessage())) {
+                System.out.println("[RelayClient] Socket closed (exception).");
+                return;
+            }
+
             System.err.println("[RelayClient] Connection error: " + e.getMessage());
             e.printStackTrace();
             if (matchListener != null)

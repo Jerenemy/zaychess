@@ -30,7 +30,8 @@ public final class SerendipityEngineService implements EngineService {
         this.inProcess = false;
     }
 
-    @Override public void start() throws Exception {
+    @Override
+    public void start() throws Exception {
         if (inProcess) {
             requireVectorModule();
             ensureUciAvailable();
@@ -45,30 +46,45 @@ public final class SerendipityEngineService implements EngineService {
     }
 
     private void safeSet(String name, String value) {
-        try { eng.setOption(name, value); } catch (Exception ignored) {}
+        try {
+            eng.setOption(name, value);
+        } catch (Exception ignored) {
+        }
     }
 
-    @Override public void newGame() throws Exception { eng.newGame(); }
+    @Override
+    public void newGame() throws Exception {
+        eng.newGame();
+    }
 
-    @Override public void setOption(String name, String value) throws Exception {
+    @Override
+    public void setOption(String name, String value) throws Exception {
         eng.setOption(name, value);
     }
 
-    @Override public void setPositionFEN(String fen) throws Exception {
-        if (fen == null || fen.isBlank()) return;
+    @Override
+    public void setPositionFEN(String fen) throws Exception {
+        if (fen == null || fen.isBlank())
+            return;
         eng.setPositionFEN(fen);
     }
 
-    @Override public void pushUserMove(String uciMove) {
+    @Override
+    public void pushUserMove(String uciMove) {
         eng.applyUserMove(uciMove);
     }
 
-    @Override public String bestMoveMs(int movetimeMs) throws Exception {
-        return eng.goMovetime(movetimeMs, /*buffer*/ 2000).move();
+    @Override
+    public String bestMoveMs(int movetimeMs) throws Exception {
+        return eng.goMovetime(movetimeMs, /* buffer */ 2000).move();
     }
 
-    @Override public void close() {
-        if (eng != null) eng.close();
+    @Override
+    public synchronized void close() {
+        if (eng != null) {
+            eng.close();
+            eng = null;
+        }
     }
 
     private static void runUciMain() {
@@ -82,8 +98,10 @@ public final class SerendipityEngineService implements EngineService {
                 main.invoke(null, (Object) new String[0]);
             } catch (InvocationTargetException e) {
                 Throwable cause = e.getCause();
-                if (cause instanceof RuntimeException) throw (RuntimeException) cause;
-                if (cause instanceof Error) throw (Error) cause;
+                if (cause instanceof RuntimeException)
+                    throw (RuntimeException) cause;
+                if (cause instanceof Error)
+                    throw (Error) cause;
                 throw new IllegalStateException("Serendipity UCI main failed.", cause);
             } finally {
                 current.setContextClassLoader(original);
@@ -129,11 +147,14 @@ public final class SerendipityEngineService implements EngineService {
 
     private static ClassLoader getUciClassLoader() {
         ClassLoader cached = uciClassLoader;
-        if (cached != null) return cached;
+        if (cached != null)
+            return cached;
         synchronized (SerendipityEngineService.class) {
-            if (uciClassLoader != null) return uciClassLoader;
+            if (uciClassLoader != null)
+                return uciClassLoader;
             Path jarPath = resolveEngineJar();
-            if (jarPath == null) return null;
+            if (jarPath == null)
+                return null;
             try {
                 uciClassLoader = new URLClassLoader(
                         new URL[] { jarPath.toUri().toURL() },
@@ -149,33 +170,40 @@ public final class SerendipityEngineService implements EngineService {
         String override = System.getProperty(SERENDIPITY_JAR_PROP);
         if (override != null && !override.isBlank()) {
             Path path = Paths.get(override);
-            if (Files.isRegularFile(path)) return path.toAbsolutePath();
+            if (Files.isRegularFile(path))
+                return path.toAbsolutePath();
         }
 
         String envOverride = System.getenv("SERENDIPITY_JAR");
         if (envOverride != null && !envOverride.isBlank()) {
             Path path = Paths.get(envOverride);
-            if (Files.isRegularFile(path)) return path.toAbsolutePath();
+            if (Files.isRegularFile(path))
+                return path.toAbsolutePath();
         }
 
         Path base = resolveCodeBase();
         if (base != null) {
             Path candidate = base.resolve("engines/Serendipity.jar");
-            if (Files.isRegularFile(candidate)) return candidate;
+            if (Files.isRegularFile(candidate))
+                return candidate;
             candidate = base.resolve("Chess/engines/Serendipity.jar");
-            if (Files.isRegularFile(candidate)) return candidate;
+            if (Files.isRegularFile(candidate))
+                return candidate;
             Path contents = base.getParent();
             if (contents != null) {
                 candidate = contents.resolve("Resources/engines/Serendipity.jar");
-                if (Files.isRegularFile(candidate)) return candidate;
+                if (Files.isRegularFile(candidate))
+                    return candidate;
             }
         }
 
         Path cwd = Paths.get("").toAbsolutePath();
         Path candidate = cwd.resolve("Chess/engines/Serendipity.jar");
-        if (Files.isRegularFile(candidate)) return candidate;
+        if (Files.isRegularFile(candidate))
+            return candidate;
         candidate = cwd.resolve("engines/Serendipity.jar");
-        if (Files.isRegularFile(candidate)) return candidate;
+        if (Files.isRegularFile(candidate))
+            return candidate;
         return null;
     }
 
@@ -185,7 +213,8 @@ public final class SerendipityEngineService implements EngineService {
                     .getProtectionDomain()
                     .getCodeSource()
                     .getLocation();
-            if (location == null) return null;
+            if (location == null)
+                return null;
             Path path = Paths.get(location.toURI());
             return path.getParent();
         } catch (Exception e) {

@@ -138,6 +138,18 @@ public class GameController implements NetworkTransport.Listener {
 		return history;
 	}
 
+	public void stopEngine() {
+		if (this.engine != null) {
+			try {
+				this.engine.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+				this.engine = null;
+			}
+		}
+	}
+
 	public void setEngine() {
 		this.engine = new SerendipityEngineService();
 		try {
@@ -723,10 +735,31 @@ public class GameController implements NetworkTransport.Listener {
 	}
 
 	private void returnToMenu() {
+		System.out.println("[DEBUG] returnToMenu() called on thread: " + Thread.currentThread().getName());
 		java.awt.Window win = SwingUtilities.getWindowAncestor(boardPanel);
-		if (win != null)
-			win.dispose();
-		SwingUtilities.invokeLater(() -> MainFrame.getInstance().showMenu());
+		if (win != null) {
+			if (win instanceof MainFrame) {
+				System.out.println("[DEBUG] Ancestor is MainFrame, NOT disposing. Just switching view.");
+			} else {
+				System.out.println("[DEBUG] Ancestor is " + win.getClass().getName() + ", disposing.");
+				win.dispose();
+			}
+		} else {
+			System.out.println("[DEBUG] No ancestor window found for boardPanel.");
+		}
+
+		// Ensure engine is stopped when leaving game view?
+		// Run in background to avoid freezing EDT
+		new Thread(() -> {
+			System.out.println("[DEBUG] Stopping engine in background...");
+			stopEngine();
+			System.out.println("[DEBUG] Engine stopped.");
+		}).start();
+
+		SwingUtilities.invokeLater(() -> {
+			System.out.println("[DEBUG] Switching to Main Menu view...");
+			MainFrame.getInstance().showMenu();
+		});
 	}
 
 	/**

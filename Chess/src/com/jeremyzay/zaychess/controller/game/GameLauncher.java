@@ -93,6 +93,7 @@ public class GameLauncher {
                         javax.swing.JOptionPane.showMessageDialog(MainFrame.getInstance(),
                                 "Matchmaking error: " + msg,
                                 "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+                        MainFrame.getInstance().showMenu(); // Ensure we return to menu
                     });
                 }
             });
@@ -104,6 +105,7 @@ public class GameLauncher {
             SwingUtilities.invokeLater(() -> {
                 if (waitingDialog != null)
                     waitingDialog.dispose();
+                MainFrame.getInstance().showMenu(); // Ensure we return to menu
             });
         }
     }

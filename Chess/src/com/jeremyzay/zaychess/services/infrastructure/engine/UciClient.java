@@ -10,21 +10,19 @@ import java.util.concurrent.atomic.AtomicReference;
 /** Minimal UCI client for Java chess GUIs. */
 public final class UciClient implements AutoCloseable {
     private static final boolean DEBUG_LOG = Boolean.getBoolean("uci.debug");
-    private static final int DEBUG_MAX_LINES =
-            Math.max(20, Integer.getInteger("uci.debug.lines", 100));
-    private static final int DEBUG_MAX_COMMANDS =
-            Math.max(10, Integer.getInteger("uci.debug.commands", 40));
+    private static final int DEBUG_MAX_LINES = Math.max(20, Integer.getInteger("uci.debug.lines", 100));
+    private static final int DEBUG_MAX_COMMANDS = Math.max(10, Integer.getInteger("uci.debug.commands", 40));
 
     private final AutoCloseable transport;
     private final InProcessRuntime inProcess;
     private final BufferedWriter w;
     private final BufferedReader r;
     private final ExecutorService pump = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "uci-out-pump"); t.setDaemon(true); return t;
+        Thread t = new Thread(r, "uci-out-pump");
+        t.setDaemon(true);
+        return t;
     });
-    private static final long UCI_HANDSHAKE_TIMEOUT_MS =
-            Long.getLong("uci.handshake.timeout", 10_000L);
-
+    private static final long UCI_HANDSHAKE_TIMEOUT_MS = Long.getLong("uci.handshake.timeout", 10_000L);
 
     private final Deque<String> recentOutput = new ArrayDeque<>(DEBUG_MAX_LINES);
     private final Object recentLock = new Object();
@@ -51,12 +49,14 @@ public final class UciClient implements AutoCloseable {
 
         pump.submit(() -> {
             try {
-                for (String line; (line = r.readLine()) != null; ) {
+                for (String line; (line = r.readLine()) != null;) {
                     recordOutput(line);
                     lines.offer(line);
                 }
-            } catch (IOException ignored) { }
-            finally { alive = false; }
+            } catch (IOException ignored) {
+            } finally {
+                alive = false;
+            }
         });
 
         send("uci");
@@ -70,8 +70,7 @@ public final class UciClient implements AutoCloseable {
                 javaCmd,
                 "--add-modules=jdk.incubator.vector",
                 "-jar",
-                jarPath
-        );
+                jarPath);
         pb.redirectErrorStream(true);
         Process proc = pb.start();
         return new UciClient(proc.getInputStream(), proc.getOutputStream(), proc::destroy);
@@ -111,12 +110,17 @@ public final class UciClient implements AutoCloseable {
         moveHistory.clear();
     }
 
-    /** Record a user move in the engine's expected notation (Serendipity expects SAN). */
+    /**
+     * Record a user move in the engine's expected notation (Serendipity expects
+     * SAN).
+     */
     public void applyUserMove(String move) {
         moveHistory.add(move);
     }
 
-    /** Option helper (e.g., setOption("Threads", "4"); setOption("Hash", "256")). */
+    /**
+     * Option helper (e.g., setOption("Threads", "4"); setOption("Hash", "256")).
+     */
     public void setOption(String name, String value) throws IOException, TimeoutException {
         send("setoption name " + name + " value " + value);
         isReady(2000);
@@ -159,14 +163,19 @@ public final class UciClient implements AutoCloseable {
             String line;
             try {
                 line = lines.poll(20, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) { continue; }
-            if (line == null) continue;
+            } catch (InterruptedException e) {
+                continue;
+            }
+            if (line == null)
+                continue;
 
             // Parse an optional "info" stream here if you want (scores, pv, depth).
             if (line.startsWith("bestmove ")) {
                 String[] tok = line.split("\\s+");
-                if (tok.length >= 2) found = tok[1];
-                if (tok.length >= 4 && "ponder".equals(tok[2])) ponder = tok[3];
+                if (tok.length >= 2)
+                    found = tok[1];
+                if (tok.length >= 4 && "ponder".equals(tok[2]))
+                    ponder = tok[3];
                 break;
             }
         }
@@ -204,9 +213,13 @@ public final class UciClient implements AutoCloseable {
             String line;
             try {
                 line = lines.poll(20, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) { continue; }
-            if (line == null) continue;
-            if (line.contains(token)) return;
+            } catch (InterruptedException e) {
+                continue;
+            }
+            if (line == null)
+                continue;
+            if (line.contains(token))
+                return;
         }
         if (!alive) {
             throw new TimeoutException("Engine stopped while waiting for: " + token
@@ -218,18 +231,39 @@ public final class UciClient implements AutoCloseable {
                 + formatClientState());
     }
 
-    @Override public void close() {
-        try { send("quit"); } catch (Exception ignored) {}
-        try { w.close(); } catch (Exception ignored) {}
-        try { r.close(); } catch (Exception ignored) {}
-        try { if (transport != null) transport.close(); } catch (Exception ignored) {}
+    @Override
+    public void close() {
+        // 1. Kill pump first so it stops blocking on reads
+        alive = false;
         pump.shutdownNow();
+        // 2. Try to send quit (non-blocking best-effort)
+        try {
+            send("quit");
+        } catch (Exception ignored) {
+        }
+        // 3. Close writer (signals EOF to engine stdin)
+        try {
+            w.close();
+        } catch (Exception ignored) {
+        }
+        // 4. Do NOT call r.close() — BufferedReader.readLine() and close()
+        // share the same synchronized lock. The pump thread may be blocked
+        // inside readLine() on queue.take(), so r.close() would deadlock.
+        // The pump is already killed by shutdownNow() above.
+        // 5. Close transport (engine runtime) last
+        try {
+            if (transport != null)
+                transport.close();
+        } catch (Exception ignored) {
+        }
     }
 
-    public record BestMove(String move, String ponder) { }
+    public record BestMove(String move, String ponder) {
+    }
 
     private void recordOutput(String line) {
-        if (line == null) return;
+        if (line == null)
+            return;
         synchronized (recentLock) {
             if (recentOutput.size() == DEBUG_MAX_LINES) {
                 recentOutput.removeFirst();
@@ -242,7 +276,8 @@ public final class UciClient implements AutoCloseable {
     }
 
     private void recordCommand(String cmd) {
-        if (cmd == null) return;
+        if (cmd == null)
+            return;
         synchronized (commandLock) {
             if (recentCommands.size() == DEBUG_MAX_COMMANDS) {
                 recentCommands.removeFirst();
@@ -263,7 +298,8 @@ public final class UciClient implements AutoCloseable {
     private String formatRecentOutput() {
         StringBuilder sb = new StringBuilder();
         synchronized (recentLock) {
-            if (recentOutput.isEmpty()) return "";
+            if (recentOutput.isEmpty())
+                return "";
             sb.append("\nLast engine output:\n");
             for (String line : recentOutput) {
                 sb.append(line).append('\n');
@@ -284,15 +320,18 @@ public final class UciClient implements AutoCloseable {
             sb.append("\nMove history (tail): ");
             int start = Math.max(0, moveHistory.size() - 16);
             for (int i = start; i < moveHistory.size(); i++) {
-                if (i > start) sb.append(' ');
+                if (i > start)
+                    sb.append(' ');
                 sb.append(moveHistory.get(i));
             }
         }
         String recentCommands = formatRecentCommands();
-        if (!recentCommands.isEmpty()) sb.append(recentCommands);
+        if (!recentCommands.isEmpty())
+            sb.append(recentCommands);
         if (inProcess != null) {
             String runtime = inProcess.debugState();
-            if (!runtime.isEmpty()) sb.append(runtime);
+            if (!runtime.isEmpty())
+                sb.append(runtime);
         }
         return sb.toString();
     }
@@ -300,7 +339,8 @@ public final class UciClient implements AutoCloseable {
     private String formatRecentCommands() {
         StringBuilder sb = new StringBuilder();
         synchronized (commandLock) {
-            if (recentCommands.isEmpty()) return "";
+            if (recentCommands.isEmpty())
+                return "";
             sb.append("\nRecent UCI commands:");
             for (String cmd : recentCommands) {
                 sb.append("\n").append(cmd);
@@ -324,10 +364,10 @@ public final class UciClient implements AutoCloseable {
         private final AtomicReference<Throwable> engineFailure;
 
         private InProcessRuntime(InputStream fromEngine, OutputStream toEngine,
-                                 Thread engineThread, InputStream originalIn,
-                                 PrintStream originalOut, PrintStream originalErr,
-                                 AtomicBoolean restored, AtomicBoolean engineExited,
-                                 AtomicReference<Throwable> engineFailure) {
+                Thread engineThread, InputStream originalIn,
+                PrintStream originalOut, PrintStream originalErr,
+                AtomicBoolean restored, AtomicBoolean engineExited,
+                AtomicReference<Throwable> engineFailure) {
             this.fromEngine = fromEngine;
             this.toEngine = toEngine;
             this.engineThread = engineThread;
@@ -352,12 +392,9 @@ public final class UciClient implements AutoCloseable {
             PrintStream originalErr = System.err;
 
             ThreadGroup engineGroup = new ThreadGroup(ENGINE_THREAD_GROUP);
-            ThreadRoutingInputStream routedIn =
-                    new ThreadRoutingInputStream(engineIn, originalIn, engineGroup);
-            ThreadRoutingOutputStream routedOut =
-                    new ThreadRoutingOutputStream(engineOut, originalOut, engineGroup);
-            ThreadRoutingOutputStream routedErr =
-                    new ThreadRoutingOutputStream(engineOut, originalErr, engineGroup);
+            ThreadRoutingInputStream routedIn = new ThreadRoutingInputStream(engineIn, originalIn, engineGroup);
+            ThreadRoutingOutputStream routedOut = new ThreadRoutingOutputStream(engineOut, originalOut, engineGroup);
+            ThreadRoutingOutputStream routedErr = new ThreadRoutingOutputStream(engineOut, originalErr, engineGroup);
 
             PrintStream systemOut = new PrintStream(routedOut, true, StandardCharsets.UTF_8);
             PrintStream systemErr = new PrintStream(routedErr, true, StandardCharsets.UTF_8);
@@ -390,21 +427,32 @@ public final class UciClient implements AutoCloseable {
 
         @Override
         public void close() {
+            // Close engine's stdin pipe first — engine sees EOF and exits
             try {
-                engineThread.join(2000L);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                toEngine.close();
+            } catch (IOException ignored) {
             }
-            try { toEngine.close(); } catch (IOException ignored) {}
+            // Brief wait for graceful exit
+            try {
+                engineThread.join(300L);
+            } catch (InterruptedException ignored) {
+            }
+            // Force interrupt if still alive
             if (engineThread.isAlive()) {
-                restoreSystemStreams(originalIn, originalOut, originalErr, restored);
+                engineThread.interrupt();
+                try {
+                    engineThread.join(200L);
+                } catch (InterruptedException ignored) {
+                }
             }
+            // Restore System streams immediately
+            restoreSystemStreams(originalIn, originalOut, originalErr, restored);
         }
 
         private static void restoreSystemStreams(InputStream originalIn,
-                                                  PrintStream originalOut,
-                                                  PrintStream originalErr,
-                                                  AtomicBoolean restored) {
+                PrintStream originalOut,
+                PrintStream originalErr,
+                AtomicBoolean restored) {
             if (restored.compareAndSet(false, true)) {
                 System.setIn(originalIn);
                 System.setOut(originalOut);
@@ -415,7 +463,8 @@ public final class UciClient implements AutoCloseable {
         private String debugState() {
             StringBuilder sb = new StringBuilder();
             sb.append("\nEngine thread: ").append(engineThread.getState());
-            if (engineExited.get()) sb.append(" (exited)");
+            if (engineExited.get())
+                sb.append(" (exited)");
             Throwable failure = engineFailure.get();
             if (failure != null) {
                 sb.append("\nEngine exception: ").append(failure);
@@ -446,41 +495,53 @@ public final class UciClient implements AutoCloseable {
         @Override
         public int read() throws IOException {
             byte[] buf = nextBuffer();
-            if (buf == null) return -1;
+            if (buf == null)
+                return -1;
             return buf[index++] & 0xFF;
         }
 
         @Override
         public int read(byte[] b, int off, int len) throws IOException {
-            if (b == null) throw new NullPointerException();
-            if (off < 0 || len < 0 || off + len > b.length) throw new IndexOutOfBoundsException();
-            if (len == 0) return 0;
+            if (b == null)
+                throw new NullPointerException();
+            if (off < 0 || len < 0 || off + len > b.length)
+                throw new IndexOutOfBoundsException();
+            if (len == 0)
+                return 0;
             int count = 0;
             while (count < len) {
                 int value = read();
-                if (value == -1) return (count == 0) ? -1 : count;
+                if (value == -1)
+                    return (count == 0) ? -1 : count;
                 b[off + count] = (byte) value;
                 count++;
-                if (available() == 0) break;
+                if (available() == 0)
+                    break;
             }
             return count;
         }
 
         @Override
         public int available() {
-            if (current == null) return 0;
+            if (current == null)
+                return 0;
             return Math.max(0, current.length - index);
         }
 
         @Override
         public void close() {
-            // Ignore closes to keep the pipe alive when the engine closes System.in.
+            // Signal EOF to unblock any thread blocked in queue.take()
+            if (closed.compareAndSet(false, true)) {
+                queue.offer(QueuePipe.EOF);
+            }
         }
 
         private byte[] nextBuffer() throws IOException {
             while (true) {
-                if (current != null && index < current.length) return current;
-                if (current != null && current.length == 0) return null;
+                if (current != null && index < current.length)
+                    return current;
+                if (current != null && current.length == 0)
+                    return null;
                 byte[] next;
                 try {
                     next = queue.take();
@@ -490,7 +551,8 @@ public final class UciClient implements AutoCloseable {
                 }
                 current = next;
                 index = 0;
-                if (current.length == 0) return null;
+                if (current.length == 0)
+                    return null;
             }
         }
     }
@@ -511,8 +573,10 @@ public final class UciClient implements AutoCloseable {
 
         @Override
         public void write(byte[] b, int off, int len) throws IOException {
-            if (closed.get()) throw new IOException("Stream closed");
-            if (len == 0) return;
+            if (closed.get())
+                throw new IOException("Stream closed");
+            if (len == 0)
+                return;
             byte[] copy = Arrays.copyOfRange(b, off, off + len);
             try {
                 queue.put(copy);
@@ -536,7 +600,7 @@ public final class UciClient implements AutoCloseable {
         private final ThreadGroup engineGroup;
 
         private ThreadRoutingOutputStream(OutputStream engineOut, OutputStream appOut,
-                                          ThreadGroup engineGroup) {
+                ThreadGroup engineGroup) {
             this.engineOut = engineOut;
             this.appOut = appOut;
             this.engineGroup = engineGroup;
@@ -564,7 +628,8 @@ public final class UciClient implements AutoCloseable {
         private boolean isEngineThread() {
             ThreadGroup current = Thread.currentThread().getThreadGroup();
             while (current != null) {
-                if (current == engineGroup) return true;
+                if (current == engineGroup)
+                    return true;
                 current = current.getParent();
             }
             return false;
@@ -577,7 +642,7 @@ public final class UciClient implements AutoCloseable {
         private final ThreadGroup engineGroup;
 
         private ThreadRoutingInputStream(InputStream engineIn, InputStream appIn,
-                                         ThreadGroup engineGroup) {
+                ThreadGroup engineGroup) {
             this.engineIn = engineIn;
             this.appIn = appIn;
             this.engineGroup = engineGroup;
@@ -605,7 +670,8 @@ public final class UciClient implements AutoCloseable {
         private boolean isEngineThread() {
             ThreadGroup current = Thread.currentThread().getThreadGroup();
             while (current != null) {
-                if (current == engineGroup) return true;
+                if (current == engineGroup)
+                    return true;
                 current = current.getParent();
             }
             return false;

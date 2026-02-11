@@ -8,37 +8,33 @@ import javax.swing.*;
  * Panel for the main menu UI.
  * Displays buttons for starting games, loading saves, multiplayer, and
  * quitting.
- * Draws the main menu background image.
+ * Draws the main menu background image with cover-scaling (no warping).
  */
 public class MainMenuPanel extends JPanel {
     @Serial
     private static final long serialVersionUID = 3788552984549957863L;
 
     private final Image backgroundImage = ResourceLoader.MAIN_MENU_BACKGROUND;
-    private final int uiHeight;
-    private final int uiWidth;
+    private final double imageAspect;
 
     public MainMenuPanel(MainFrame owner, int targetHeight) {
-        // --- compute width from image aspect ratio ---
+        // --- compute image aspect ratio ---
         int imgW = 0, imgH = 0;
         if (backgroundImage != null) {
             ImageIcon ii = new ImageIcon(backgroundImage); // forces load; reliable dims
             imgW = ii.getIconWidth();
             imgH = ii.getIconHeight();
         }
-        if (imgW <= 0 || imgH <= 0) { // fallback to a safe ratio if something’s wrong
+        if (imgW <= 0 || imgH <= 0) { // fallback to a safe ratio if something's wrong
             imgW = 1920;
             imgH = 1080;
         }
 
-        this.uiHeight = targetHeight;
-        this.uiWidth = (int) Math.round(targetHeight * (imgW / (double) imgH));
+        this.imageAspect = imgW / (double) imgH;
+        int uiWidth = (int) Math.round(targetHeight * imageAspect);
 
-        // fix the panel size to this image‑scaled size
-        Dimension d = new Dimension(uiWidth, uiHeight);
-        setPreferredSize(d);
-        setMinimumSize(d);
-        setMaximumSize(d);
+        // preferred size based on image aspect ratio, but panel can grow/shrink
+        setPreferredSize(new Dimension(uiWidth, targetHeight));
 
         // your existing layout and buttons...
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -106,8 +102,6 @@ public class MainMenuPanel extends JPanel {
         button.setBorderPainted(true);
         button.setFocusPainted(false);
         button.setRolloverEnabled(true);
-        // button.setBorder(BorderFactory.createEmptyBorder(6, 16, 6, 16));
-        // button.setBorder(BorderFactory.createEmptyBorder(4, 14, 4, 14));
 
         return button;
     }
@@ -115,7 +109,7 @@ public class MainMenuPanel extends JPanel {
     private Component center(JButton button) {
         JPanel wrapper = new JPanel();
         wrapper.setOpaque(false);
-        // reduce vertical gap (was 15 → try 5 for tighter stacking)
+        // reduce vertical gap (was 15 -> try 5 for tighter stacking)
         wrapper.setLayout(new FlowLayout(FlowLayout.CENTER, 0, 5));
         wrapper.add(button);
         return wrapper;
@@ -124,9 +118,29 @@ public class MainMenuPanel extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        if (backgroundImage != null) {
-            g.drawImage(backgroundImage, 0, 0, uiWidth, uiHeight, this);
+        if (backgroundImage == null)
+            return;
+
+        int pw = getWidth();
+        int ph = getHeight();
+        if (pw <= 0 || ph <= 0)
+            return;
+
+        // "Cover" scaling: scale image to fill the panel, then center-crop
+        double panelAspect = pw / (double) ph;
+        int drawW, drawH, dx, dy;
+        if (imageAspect > panelAspect) {
+            // Image is wider than panel — fit height, crop sides
+            drawH = ph;
+            drawW = (int) Math.round(ph * imageAspect);
+        } else {
+            // Image is taller than panel — fit width, crop top/bottom
+            drawW = pw;
+            drawH = (int) Math.round(pw / imageAspect);
         }
+        dx = (pw - drawW) / 2;
+        dy = (ph - drawH) / 2;
+        g.drawImage(backgroundImage, dx, dy, drawW, drawH, this);
     }
 
 }

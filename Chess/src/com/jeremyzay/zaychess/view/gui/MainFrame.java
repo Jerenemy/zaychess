@@ -45,6 +45,7 @@ public class MainFrame extends JFrame {
 
         add(mainPanel);
         setSize(1000, 700);
+        setMinimumSize(new Dimension(500, 400));
         setLocationRelativeTo(null);
         showMenu();
     }

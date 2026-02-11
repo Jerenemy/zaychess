@@ -5,10 +5,7 @@ import javax.swing.SwingUtilities;
 
 import com.jeremyzay.zaychess.model.game.GameState;
 import com.jeremyzay.zaychess.model.util.PlayerColor;
-import com.jeremyzay.zaychess.services.infrastructure.network.NetworkTransport;
 import com.jeremyzay.zaychess.services.infrastructure.network.RelayClient;
-import com.jeremyzay.zaychess.services.infrastructure.network.TcpClient;
-import com.jeremyzay.zaychess.services.infrastructure.network.TcpHost;
 import com.jeremyzay.zaychess.view.gui.MainFrame;
 
 /**
@@ -21,36 +18,8 @@ public class GameLauncher {
                 new com.jeremyzay.zaychess.view.gui.ChessPanel(gameState.getBoard(), controller));
     }
 
-    public static void launchAsHost(GameState gameState, GameController controller,
-            JDialog waitingDialog) {
-        try {
-            NetworkTransport host = new TcpHost(5000);
-            controller.setLocalSide(PlayerColor.WHITE);
-            controller.attachNetwork(host);
-            if (waitingDialog != null)
-                waitingDialog.dispose();
-            SwingUtilities.invokeLater(() -> {
-                MainFrame.getInstance().switchToGame(
-                        new com.jeremyzay.zaychess.view.gui.ChessPanel(gameState.getBoard(), controller));
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static boolean launchAsClient(GameState gameState, GameController controller, String ip) {
-        try {
-            NetworkTransport client = new TcpClient(ip, 5000);
-            controller.setLocalSide(PlayerColor.BLACK);
-            controller.attachNetwork(client);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-        MainFrame.getInstance().switchToGame(
-                new com.jeremyzay.zaychess.view.gui.ChessPanel(gameState.getBoard(), controller));
-        return true;
-    }
+    // LAN/Direct-IP hosting removed in 1.1.3 to simplify App Store review.
+    // Matchmaking now handled exclusively via launchOnline (Relay).
 
     public static void launchOnline(GameState gameState, GameController controller,
             JDialog waitingDialog,

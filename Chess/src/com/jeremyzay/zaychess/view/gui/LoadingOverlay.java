@@ -47,9 +47,9 @@ public class LoadingOverlay extends JPanel {
 
         // Animation loop
         animationTimer = new Timer(16, e -> {
-            angle += 5f;
-            if (angle >= 360f)
-                angle -= 360f;
+            angle -= 5f;
+            if (angle <= 0f)
+                angle += 360f;
             repaint();
         });
     }
@@ -109,37 +109,54 @@ public class LoadingOverlay extends JPanel {
     protected void paintComponent(Graphics g) {
         Graphics2D g2 = (Graphics2D) g.create();
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 
         int w = getWidth();
         int h = getHeight();
 
         // 1. Dark Overlay
-        g2.setColor(new Color(0, 0, 0, 180)); // 70% opacity black
+        g2.setColor(new Color(0, 0, 0, 180));
         g2.fillRect(0, 0, w, h);
 
-        // 2. Spinner
+        // 2. Swiftify-style Gradient Spinner
         int cx = w / 2;
         int cy = h / 2 - 30; // Shift up slightly
         int r = 40; // radius
-        int stroke = 6;
+        int strokeWidth = 5;
 
         g2.translate(cx, cy);
-        g2.rotate(Math.toRadians(angle));
 
-        // Draw multiple arcs for "spiraling" effect
-        g2.setStroke(new BasicStroke(stroke, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        // Draw segments with fading alpha
+        int segments = 240; // High density for smooth look
+        float angleStep = 360f / segments;
+        g2.setStroke(new BasicStroke(strokeWidth, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND));
 
-        // Trail effect
-        for (int i = 0; i < 6; i++) {
-            float alpha = 1.0f - (i * 0.15f);
-            if (alpha < 0)
-                alpha = 0;
+        for (int i = 0; i < segments; i++) {
+            // i=0 is the head (brightest)
+            float alpha = (float) Math.pow(1.0f - ((float) i / segments), 2.5); // Smooth accelerated fade
+            if (alpha < 0.01f)
+                continue;
+
             g2.setColor(new Color(1f, 1f, 1f, alpha));
-            // Draw arc segment
-            g2.draw(new Arc2D.Float(-r, -r, 2 * r, 2 * r, 90 + (i * 20), -40, Arc2D.OPEN));
+
+            // Swing arcs: 0 is right, positive is counter-clockwise.
+            // Since we rotate clockwise (angle decreases), the trail must be
+            // counter-clockwise from the head.
+            // So we ADD to the angle as 'i' increases to move "backwards" in time.
+            float startAngle = (float) (angle - 90 + (i * angleStep));
+
+            // Slightly overlap segments to prevent gaps
+            g2.draw(new java.awt.geom.Arc2D.Float(-r, -r, 2 * r, 2 * r, startAngle, angleStep * 1.5f,
+                    java.awt.geom.Arc2D.OPEN));
         }
 
-        g2.rotate(-Math.toRadians(angle)); // Un-rotate for text
+        // Add a rounded cap at the very head for polish
+        g2.setColor(Color.WHITE);
+        g2.setStroke(new BasicStroke(strokeWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        // The head is at 'angle - 90'
+        g2.draw(new java.awt.geom.Arc2D.Float(-r, -r, 2 * r, 2 * r, (float) (angle - 90), 0.1f,
+                java.awt.geom.Arc2D.OPEN));
+
         g2.translate(-cx, -cy);
 
         // 3. Text
@@ -147,11 +164,8 @@ public class LoadingOverlay extends JPanel {
         g2.setFont(new Font("SansSerif", Font.BOLD, 20));
         FontMetrics fm = g2.getFontMetrics();
         int tw = fm.stringWidth(message);
-        g2.drawString(message, cx - tw / 2, cy + r + 40);
+        g2.drawString(message, cx - tw / 2, cy + r + 45);
 
         g2.dispose();
-
-        // Let children (buttons) paint on top
-        // paintChildren is called automatically by Swing after paintComponent
     }
 }

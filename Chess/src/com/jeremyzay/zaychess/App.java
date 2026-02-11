@@ -16,6 +16,12 @@ public class App {
     @SuppressWarnings("resource")
     public static void main(String[] args) {
         try {
+            javax.swing.UIManager.setLookAndFeel(javax.swing.UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        try {
             SwingUtilities.invokeLater(() -> {
                 // Initialize MainFrame immediately to capture instance?
                 // The loading dialog logic is fine.

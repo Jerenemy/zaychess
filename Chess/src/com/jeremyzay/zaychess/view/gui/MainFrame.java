@@ -88,7 +88,7 @@ public class MainFrame extends JFrame {
         }
 
         System.out.println("[DEBUG] resetGameSessionAsync called.");
-        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
 
         new Thread(() -> {
             try {

@@ -10,6 +10,7 @@ import com.jeremyzay.zaychess.model.pieces.*;
 import com.jeremyzay.zaychess.model.util.PlayerColor;
 import com.jeremyzay.zaychess.model.util.Position;
 import com.jeremyzay.zaychess.view.gui.theme.BoardTheme;
+import com.jeremyzay.zaychess.view.gui.swing.ZayButton;
 
 /**
  * Revamped minimalist main menu with Precise Dynamic Scaling.
@@ -431,61 +432,8 @@ public class MainMenuPanel extends JPanel {
     }
 
     private JButton createMenuButton(String text, ActionListener action) {
-        JButton btn = new JButton(text) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-                int w = getWidth();
-                int h = getHeight();
-                int arc = OverlayPanel.BUTTON_ARC;
-
-                ButtonModel m = getModel();
-                boolean hover = m.isRollover();
-                boolean press = m.isPressed();
-
-                // Expansion: 6% on hover (scaled)
-                float expansion = hover ? 1.06f : 1.0f;
-                int curW = (int) (w * 0.94f * expansion);
-                int curH = (int) (h * 0.85f * expansion);
-
-                int x = (w - curW) / 2;
-                int y = (h - curH) / 2;
-
-                g2.setColor(press ? new Color(220, 220, 220) : (hover ? new Color(245, 245, 245) : Color.WHITE));
-                g2.fillRoundRect(x, y, curW, curH, arc, arc);
-
-                g2.setColor(new Color(180, 180, 180));
-                g2.setStroke(new BasicStroke(1.5f));
-                g2.drawRoundRect(x, y, curW, curH, arc, arc);
-
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-
-        btn.setForeground(BLACK);
-        btn.setFocusPainted(false);
-        btn.setBorderPainted(false);
-        btn.setContentAreaFilled(false);
-        btn.setOpaque(false);
-        btn.setRolloverEnabled(true);
-        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        ZayButton btn = new ZayButton(text);
         btn.addActionListener(action);
-
-        btn.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                btn.repaint();
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                btn.repaint();
-            }
-        });
-
         return btn;
     }
 }

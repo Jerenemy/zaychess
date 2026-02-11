@@ -4,6 +4,7 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.geom.Arc2D;
 import javax.swing.*;
+import com.jeremyzay.zaychess.view.gui.swing.ZayButton;
 
 /**
  * A glass-pane overlay for loading/waiting screens.
@@ -55,41 +56,8 @@ public class LoadingOverlay extends JPanel {
     }
 
     private JButton createCancelButton() {
-        JButton btn = new JButton("Cancel") {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-                // base + hover/press alpha
-                float alpha = 0.20f;
-                ButtonModel m = getModel();
-                if (m.isRollover())
-                    alpha = 0.40f;
-                if (m.isPressed())
-                    alpha = 0.60f;
-
-                g2.setComposite(AlphaComposite.SrcOver.derive(alpha));
-                g2.setColor(Color.WHITE);
-                int arc = OverlayPanel.BUTTON_ARC; // rounded corners
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
-                g2.dispose();
-
-                super.paintComponent(g);
-            }
-        };
-
-        btn.setFont(new Font("SansSerif", Font.BOLD, 14));
-        btn.setForeground(Color.WHITE);
-        btn.setFocusPainted(false);
-        btn.setBorderPainted(false);
-        btn.setContentAreaFilled(false);
-        btn.setOpaque(false);
-        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-
-        // Sizing
+        ZayButton btn = new ZayButton("Cancel");
         btn.setPreferredSize(new Dimension(140, 40));
-
         return btn;
     }
 

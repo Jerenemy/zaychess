@@ -10,6 +10,7 @@ import com.jeremyzay.zaychess.model.pieces.Rook;
 import com.jeremyzay.zaychess.model.pieces.Bishop;
 import com.jeremyzay.zaychess.model.pieces.Knight;
 import com.jeremyzay.zaychess.model.util.PlayerColor;
+import com.jeremyzay.zaychess.view.gui.swing.ZayButton;
 
 /**
  * Inline overlay for pawn promotion piece selection.
@@ -69,24 +70,8 @@ public final class PromotionDialog extends OverlayPanel {
             // Use the same icon loader as the board (60px for 80px button)
             Icon icon = ResourceLoader.getPieceIcon(dummy, 60);
 
-            JButton btn = new JButton(icon);
-            btn.setFocusPainted(false);
+            JButton btn = new ZayButton(icon);
             btn.setPreferredSize(new Dimension(80, 80));
-            btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            btn.setContentAreaFilled(false);
-            btn.setBorderPainted(false);
-
-            // Add hover effect
-            btn.addMouseListener(new java.awt.event.MouseAdapter() {
-                public void mouseEntered(java.awt.event.MouseEvent evt) {
-                    btn.setContentAreaFilled(true);
-                    btn.setBackground(new Color(230, 230, 230, 100)); // faint highlight
-                }
-
-                public void mouseExited(java.awt.event.MouseEvent evt) {
-                    btn.setContentAreaFilled(false);
-                }
-            });
 
             btn.addActionListener(e -> {
                 hideOverlay();

@@ -4,6 +4,8 @@ import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import javax.swing.*;
+import com.jeremyzay.zaychess.view.gui.swing.ZayButton;
+import com.jeremyzay.zaychess.view.gui.swing.ZayToggleButton;
 
 import com.jeremyzay.zaychess.controller.game.GameController;
 import com.jeremyzay.zaychess.controller.input.MouseInputHandler;
@@ -23,8 +25,8 @@ public class ChessPanel extends JPanel {
     private boolean capturedVisible = true;
     // private int lastRightDivider = -1; // Removed
     // private int lastLeftDivider = -1; // Removed
-    private JToggleButton movesToggle;
-    private JToggleButton capturedToggle;
+    private ZayToggleButton movesToggle;
+    private ZayToggleButton capturedToggle;
 
     public ChessPanel(Board board, GameController controller) {
         setLayout(new BorderLayout());
@@ -45,31 +47,29 @@ public class ChessPanel extends JPanel {
         // --------- TOP BAR ---------
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 6));
 
-        capturedToggle = new JToggleButton("♟", true);
-        capturedToggle.setFocusable(false);
+        capturedToggle = new ZayToggleButton("♟", true);
+        capturedToggle.setPreferredSize(new Dimension(50, 40));
         capturedToggle.setToolTipText("Toggle captured pieces");
         capturedToggle.addActionListener(e -> toggleCapturedPanel());
         topBar.add(capturedToggle);
 
-        movesToggle = new JToggleButton("≡", true);
-        movesToggle.setFocusable(false);
+        movesToggle = new ZayToggleButton("≡", true);
+        movesToggle.setPreferredSize(new Dimension(50, 40));
         movesToggle.setToolTipText("Toggle move panel");
         movesToggle.addActionListener(e -> toggleMovesPanel());
         topBar.add(movesToggle);
 
         if (!controller.isOnline()) {
-            JButton undoButton = new JButton("←");
-            undoButton.setMargin(new Insets(2, 6, 2, 6));
-            undoButton.setFocusable(false);
+            ZayButton undoButton = new ZayButton("←");
+            undoButton.setPreferredSize(new Dimension(50, 40));
             undoButton.addActionListener(e -> {
                 controller.undo();
                 boardPanel.repaint();
             });
             topBar.add(undoButton);
 
-            JButton redoButton = new JButton("→");
-            redoButton.setMargin(new Insets(2, 6, 2, 6));
-            redoButton.setFocusable(false);
+            ZayButton redoButton = new ZayButton("→");
+            redoButton.setPreferredSize(new Dimension(50, 40));
             redoButton.addActionListener(e -> {
                 controller.redo();
                 boardPanel.repaint();
@@ -78,16 +78,14 @@ public class ChessPanel extends JPanel {
         }
 
         if (!controller.isOnline()) {
-            JButton saveButton = new JButton("Save");
-            saveButton.setMargin(new Insets(2, 6, 2, 6));
-            saveButton.setFocusable(false);
+            ZayButton saveButton = new ZayButton("Save");
+            saveButton.setPreferredSize(new Dimension(80, 40));
             saveButton.addActionListener(e -> handleSave(controller));
             topBar.add(saveButton);
         }
 
-        JButton exitButton = new JButton("Menu");
-        exitButton.setMargin(new Insets(2, 6, 2, 6));
-        exitButton.setFocusable(false);
+        ZayButton exitButton = new ZayButton("Menu");
+        exitButton.setPreferredSize(new Dimension(80, 40));
         exitButton.addActionListener(e -> {
             MainFrame.getInstance().showMenu();
         });

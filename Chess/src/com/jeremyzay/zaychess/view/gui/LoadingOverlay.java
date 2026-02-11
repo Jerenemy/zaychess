@@ -71,7 +71,7 @@ public class LoadingOverlay extends JPanel {
 
                 g2.setComposite(AlphaComposite.SrcOver.derive(alpha));
                 g2.setColor(Color.WHITE);
-                int arc = 20; // rounded corners
+                int arc = OverlayPanel.BUTTON_ARC; // rounded corners
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
                 g2.dispose();
 

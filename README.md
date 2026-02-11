@@ -97,5 +97,6 @@ sudo ufw allow 8080/tcp
 - [x] Captured pieces display
 - [x] improve ui of captured pieces panel
 - [x] make buttons with squircles
+- fix local game to ai no loading screen bug (critical for not letting join own multiplayer game)
 - [ ] Clock functionality
 - [ ] Theme selection UI

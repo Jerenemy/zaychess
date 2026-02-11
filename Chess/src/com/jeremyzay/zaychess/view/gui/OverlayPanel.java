@@ -171,6 +171,123 @@ public abstract class OverlayPanel extends JPanel {
     }
 
     /**
+     * Creates a primary action button (translucent industrial style).
+     * Features a semi-transparent metallic body and a sharp, glowing rim.
+     */
+    protected static JButton createMainButton(String text) {
+        JButton btn = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                int w = getWidth();
+                int h = getHeight();
+                int arc = BUTTON_ARC;
+
+                ButtonModel m = getModel();
+                boolean hover = m.isRollover();
+                boolean press = m.isPressed();
+
+                // 1. Layout Metrics
+                // Inset to allow room for outer glow
+                int inset = 6;
+                int btnW = w - inset * 2;
+                int btnH = h - inset * 2;
+                int x = inset;
+                int y = inset;
+
+                // 2. Draw Translucent Glow (Outer) - ONLY ON HOVER
+                if (hover && !press) {
+                    g2.setComposite(AlphaComposite.SrcOver);
+                    // "Industrial" glow: Cool white/cyan tint, sharp falloff
+                    Color glowColor = new Color(220, 240, 255, 180);
+
+                    for (int i = 0; i < 4; i++) {
+                        float alpha = (float) glowColor.getAlpha() / 255f;
+                        alpha *= (1f - (i / 4f));
+                        g2.setColor(new Color(glowColor.getRed(), glowColor.getGreen(), glowColor.getBlue(),
+                                (int) (alpha * 255)));
+                        g2.setStroke(new BasicStroke(i * 3 + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                        g2.drawRoundRect(x, y, btnW, btnH, arc, arc);
+                    }
+                }
+
+                // 3. Button Body (Translucent Metallic Gradient)
+                Color topColor;
+                Color botColor;
+
+                // "Industrial" palette: Cool greys, semi-transparent
+                if (press) {
+                    topColor = new Color(50, 60, 70, 200); // Darker press
+                    botColor = new Color(30, 40, 50, 200);
+                } else if (hover) {
+                    topColor = new Color(240, 245, 255, 230); // Brighter translucent white-blue on hover
+                    botColor = new Color(200, 210, 220, 230);
+                } else {
+                    topColor = new Color(220, 225, 230, 180); // Standard translucent metallic
+                    botColor = new Color(180, 185, 190, 180);
+                }
+
+                GradientPaint gp = new GradientPaint(0, y, topColor, 0, y + btnH, botColor);
+                g2.setPaint(gp);
+                g2.fillRoundRect(x, y, btnW, btnH, arc, arc);
+
+                // 4. Sharp Industrial Border
+                // Definition line
+                g2.setComposite(AlphaComposite.SrcOver);
+                if (hover) {
+                    g2.setColor(new Color(255, 255, 255, 200)); // Bright rim on hover
+                    g2.setStroke(new BasicStroke(1.5f));
+                } else {
+                    g2.setColor(new Color(200, 200, 200, 150)); // Subtle rim otherwise
+                    g2.setStroke(new BasicStroke(1f));
+                }
+                g2.drawRoundRect(x, y, btnW, btnH, arc, arc);
+
+                // Inner bevel highlight highlights top/left for 3D effect
+                if (!press) {
+                    g2.setColor(new Color(255, 255, 255, 100));
+                    g2.setStroke(new BasicStroke(1));
+                    g2.drawRoundRect(x + 2, y + 2, btnW - 4, btnH - 4, arc - 2, arc - 2);
+                }
+
+                g2.dispose();
+
+                super.paintComponent(g);
+            }
+        };
+
+        btn.setFont(new Font("SansSerif", Font.BOLD, 16));
+        btn.setForeground(Color.BLACK);
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(false);
+        btn.setContentAreaFilled(false);
+        btn.setOpaque(false);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setRolloverEnabled(true);
+        btn.setPreferredSize(new Dimension(240, 60));
+
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                btn.repaint();
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                btn.repaint();
+            }
+        });
+
+        return btn;
+    }
+
+    /**
+     * Creates a secondary action button (transparent/gray) similar to
+     * LoadingOverlay cancel button.
+     */
+    public static final int BUTTON_ARC = 20;
+
+    /**
      * Creates a secondary action button (transparent/gray) similar to
      * LoadingOverlay cancel button.
      */
@@ -191,8 +308,7 @@ public abstract class OverlayPanel extends JPanel {
 
                 g2.setComposite(AlphaComposite.SrcOver.derive(alpha));
                 g2.setColor(Color.WHITE);
-                int arc = 20; // rounded corners
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), BUTTON_ARC, BUTTON_ARC);
                 g2.dispose();
 
                 super.paintComponent(g);

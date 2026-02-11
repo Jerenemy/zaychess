@@ -1084,6 +1084,7 @@ public class GameController implements NetworkTransport.Listener {
 						// Only apply if no undo occurred during thinking
 						if (versionAtStart == engineMoveVersion) {
 							applyMoveAndNotify(em, false);
+							maybeEngineRespond(); // Only continue if move was applied successfully
 						}
 					});
 				}
@@ -1091,12 +1092,6 @@ public class GameController implements NetworkTransport.Listener {
 				e.printStackTrace();
 			} finally {
 				engineThinking = false;
-				SwingUtilities.invokeLater(() -> {
-					// Only continue if no undo occurred
-					if (versionAtStart == engineMoveVersion) {
-						maybeEngineRespond();
-					}
-				});
 			}
 		}, "engine-move").start();
 	}

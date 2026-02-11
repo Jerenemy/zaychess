@@ -82,19 +82,38 @@ public final class SerendipityEngineService implements EngineService {
 
     @Override
     public String bestMoveMs(int movetimeMs) throws Exception {
-        return eng.goMovetime(movetimeMs, /* buffer */ 2000).move();
+        return eng.goMovetime(movetimeMs, /* buffer */ 5000).move(); // Increased buffer
     }
 
     @Override
     public String bestMove() throws Exception {
-        // Map 1-10 to Depth or Time
-        // Levels 1-8: Depth 2, 4, 6, 8, 10, 12, 14, 16
+        // Map 1-10 to Nodes, Depth or Time
+        // Level 1: nodes 20 (extremely weak)
+        // Level 2: nodes 100
+        // Level 3: depth 1
+        // Level 4: depth 2
+        // Level 5: depth 4
+        // Level 6: depth 6
+        // Level 7: depth 10
+        // Level 8: depth 16
         // Level 9: Time 1000ms
         // Level 10: Time 2000ms
-        if (difficultyLevel <= 8) {
-            int depth = difficultyLevel * 2;
-            // Increase timeout to 30s to be safe under load
-            return eng.goDepth(depth, 30000).move();
+        if (difficultyLevel == 1) {
+            return eng.goNodes(20, 10000).move(); // Increased timeout
+        } else if (difficultyLevel == 2) {
+            return eng.goNodes(100, 10000).move();
+        } else if (difficultyLevel == 3) {
+            return eng.goDepth(1, 10000).move();
+        } else if (difficultyLevel == 4) {
+            return eng.goDepth(2, 10000).move();
+        } else if (difficultyLevel == 5) {
+            return eng.goDepth(4, 15000).move();
+        } else if (difficultyLevel == 6) {
+            return eng.goDepth(6, 20000).move();
+        } else if (difficultyLevel == 7) {
+            return eng.goDepth(10, 30000).move();
+        } else if (difficultyLevel == 8) {
+            return eng.goDepth(16, 45000).move();
         } else if (difficultyLevel == 9) {
             return bestMoveMs(1000);
         } else {

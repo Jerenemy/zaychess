@@ -31,7 +31,7 @@ public final class UciClient implements AutoCloseable {
     private volatile String lastCommand;
     private volatile String lastPosition;
 
-    private final BlockingQueue<String> lines = new LinkedBlockingQueue<>(4096);
+    private final BlockingQueue<String> lines = new LinkedBlockingQueue<>(65536);
     private volatile boolean alive = true;
 
     // We maintain move history in the engine's expected move notation.
@@ -92,8 +92,14 @@ public final class UciClient implements AutoCloseable {
 
     /** Ensure engine is ready. */
     public void isReady(long timeoutMs) throws IOException, TimeoutException {
+        drainLines();
         send("isready");
         waitForToken("readyok", timeoutMs);
+    }
+
+    /** Discard any pending engine output lines. */
+    private void drainLines() {
+        lines.clear();
     }
 
     /** Start a fresh game. Resets internal history too. */
@@ -108,7 +114,7 @@ public final class UciClient implements AutoCloseable {
     public void setPositionFEN(String fen) throws IOException, TimeoutException {
         this.startFEN = "fen " + fen;
         moveHistory.clear();
-        isReady(2000); // Sync after FEN change
+        // Removed isReady sync here to reduce overhead; sync happens during 'go'
     }
 
     /**
@@ -130,19 +136,33 @@ public final class UciClient implements AutoCloseable {
     /** Ask engine to think and return bestmove. Choose one time control method. */
     public BestMove goMovetime(int ms, long timeoutBufferMs) throws IOException, TimeoutException {
         positionSync();
+        try {
+            Thread.sleep(50);
+        } catch (InterruptedException ignored) {
+        }
+        isReady(5000); // Sync before search
         send("go movetime " + ms);
         return waitBestMove(ms + timeoutBufferMs);
     }
 
     public BestMove goDepth(int depth, long timeoutMs) throws IOException, TimeoutException {
         positionSync();
-        isReady(2000); // Sync before search
+        try {
+            Thread.sleep(50);
+        } catch (InterruptedException ignored) {
+        }
+        isReady(5000); // Sync before search
         send("go depth " + depth);
         return waitBestMove(timeoutMs);
     }
 
     public BestMove goNodes(long nodes, long timeoutMs) throws IOException, TimeoutException {
         positionSync();
+        try {
+            Thread.sleep(50);
+        } catch (InterruptedException ignored) {
+        }
+        isReady(5000); // Sync before search
         send("go nodes " + nodes);
         return waitBestMove(timeoutMs);
     }

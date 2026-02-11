@@ -4,6 +4,11 @@ import javax.swing.*;
 import java.awt.*;
 
 import com.jeremyzay.zaychess.model.move.PromotionPiece;
+import com.jeremyzay.zaychess.model.pieces.Piece;
+import com.jeremyzay.zaychess.model.pieces.Queen;
+import com.jeremyzay.zaychess.model.pieces.Rook;
+import com.jeremyzay.zaychess.model.pieces.Bishop;
+import com.jeremyzay.zaychess.model.pieces.Knight;
 import com.jeremyzay.zaychess.model.util.PlayerColor;
 
 /**
@@ -47,26 +52,46 @@ public final class PromotionDialog extends OverlayPanel {
         JPanel buttonPanel = new JPanel(new GridLayout(1, 4, 12, 0));
         buttonPanel.setOpaque(false);
 
-        String[] glyphs = (color == PlayerColor.WHITE)
-                ? new String[] { "♕", "♖", "♗", "♘" }
-                : new String[] { "♛", "♜", "♝", "♞" };
-        PromotionPiece[] pieces = {
+        PromotionPiece[] promoTypes = {
                 PromotionPiece.QUEEN, PromotionPiece.ROOK,
                 PromotionPiece.BISHOP, PromotionPiece.KNIGHT
         };
 
-        for (int i = 0; i < 4; i++) {
-            final PromotionPiece piece = pieces[i];
-            JButton btn = new JButton(
-                    "<html><div style='font-size:28px; padding:2px 10px'>" + glyphs[i] + "</div></html>");
-            btn.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        for (PromotionPiece pp : promoTypes) {
+            // Create a dummy piece to get the correct icon
+            final Piece dummy = switch (pp) {
+                case QUEEN -> new Queen(color, null);
+                case ROOK -> new Rook(color, null);
+                case BISHOP -> new Bishop(color, null);
+                case KNIGHT -> new Knight(color, null);
+            };
+
+            // Use the same icon loader as the board (60px for 80px button)
+            Icon icon = ResourceLoader.getPieceIcon(dummy, 60);
+
+            JButton btn = new JButton(icon);
             btn.setFocusPainted(false);
             btn.setPreferredSize(new Dimension(80, 80));
             btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            btn.setContentAreaFilled(false);
+            btn.setBorderPainted(false);
+
+            // Add hover effect
+            btn.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseEntered(java.awt.event.MouseEvent evt) {
+                    btn.setContentAreaFilled(true);
+                    btn.setBackground(new Color(230, 230, 230, 100)); // faint highlight
+                }
+
+                public void mouseExited(java.awt.event.MouseEvent evt) {
+                    btn.setContentAreaFilled(false);
+                }
+            });
+
             btn.addActionListener(e -> {
                 hideOverlay();
                 if (onSelect != null)
-                    onSelect.accept(piece);
+                    onSelect.accept(pp);
             });
             buttonPanel.add(btn);
         }

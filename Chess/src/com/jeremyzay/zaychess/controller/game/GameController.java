@@ -55,6 +55,7 @@ public class GameController implements NetworkTransport.Listener {
 	private final GameState gameState;
 	private BoardPanel boardPanel;
 	public List<String> moveLog = new ArrayList<>();
+	private final List<Piece> captureLog = new ArrayList<>(); // parallel capture history for undo
 	private final List<String> wireLog = new ArrayList<>();
 	private final MoveHistoryService history;
 	private NetworkTransport transport; // optional network dependency
@@ -596,8 +597,27 @@ public class GameController implements NetworkTransport.Listener {
 		String line = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")) + " " + san;
 		dispatchMoveInfo(line);
 
+		// detect capture before applying
+		Piece capturedPiece = null;
+		if (m.getMoveType() == MoveType.EN_PASSANT) {
+			// en passant: captured pawn is adjacent, not on destination
+			int epRank = m.getToPos().getRank();
+			int epFile = m.getToPos().getFile();
+			PlayerColor moverColor = gameState.getPieceColorAt(m.getFromPos());
+			int capturedRank = (moverColor == PlayerColor.WHITE) ? epRank + 1 : epRank - 1;
+			capturedPiece = gameState.getPieceAt(capturedRank, epFile);
+		} else {
+			capturedPiece = gameState.getPieceAt(m.getToPos());
+		}
+
 		// apply & UI
 		gameState.applyMove(m);
+
+		// update captured pieces panel
+		captureLog.add(capturedPiece); // null if no capture — keeps in sync with move history
+		if (capturedPiece != null) {
+			ChessPanel.getCapturedPiecesPanel().addCapturedPiece(capturedPiece);
+		}
 		if (boardPanel != null) {
 			boolean flipped = false;
 			// Local hotseat: flip if the turn perspective changed
@@ -711,6 +731,8 @@ public class GameController implements NetworkTransport.Listener {
 		history.clear();
 		wireLog.clear();
 		com.jeremyzay.zaychess.view.gui.ChessPanel.getMoveListPanel().clearMoves();
+		com.jeremyzay.zaychess.view.gui.ChessPanel.getCapturedPiecesPanel().clear();
+		captureLog.clear();
 
 		// Update Board UI
 		if (boardPanel != null) {
@@ -886,6 +908,13 @@ public class GameController implements NetworkTransport.Listener {
 		if (!moveLog.isEmpty()) {
 			String last = moveLog.remove(moveLog.size() - 1);
 			ChessPanel.getMoveListPanel().removeMove(moveLog, last);
+		}
+		// remove last capture
+		if (!captureLog.isEmpty()) {
+			Piece undone = captureLog.remove(captureLog.size() - 1);
+			if (undone != null) {
+				ChessPanel.getCapturedPiecesPanel().undoCapture(undone);
+			}
 		}
 	}
 

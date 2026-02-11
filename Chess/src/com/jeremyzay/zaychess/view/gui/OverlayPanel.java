@@ -51,12 +51,15 @@ public abstract class OverlayPanel extends JPanel {
     /**
      * Show this overlay on the MainFrame glass pane.
      */
+    private Component previousGlassPane;
+
     public void showOverlay() {
         // Build content if card is empty
         if (card.getComponentCount() == 0) {
             card.add(createContent(), BorderLayout.CENTER);
         }
         MainFrame frame = MainFrame.getInstance();
+        previousGlassPane = frame.getGlassPane();
         frame.setGlassPane(this);
         setVisible(true);
         revalidate();
@@ -70,12 +73,17 @@ public abstract class OverlayPanel extends JPanel {
         setVisible(false);
         Container parent = getParent();
         if (parent != null) {
-            // Restore a blank glass pane
             MainFrame frame = MainFrame.getInstance();
-            JPanel blank = new JPanel();
-            blank.setOpaque(false);
-            blank.setVisible(false);
-            frame.setGlassPane(blank);
+            // Restore previous glass pane if available
+            if (previousGlassPane != null) {
+                frame.setGlassPane(previousGlassPane);
+                previousGlassPane.setVisible(true); // Ensure it's active (DragGlassPane needs this)
+            } else {
+                JPanel blank = new JPanel();
+                blank.setOpaque(false);
+                blank.setVisible(false);
+                frame.setGlassPane(blank);
+            }
         }
     }
 

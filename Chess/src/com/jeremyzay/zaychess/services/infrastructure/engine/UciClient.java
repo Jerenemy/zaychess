@@ -157,13 +157,22 @@ public final class UciClient implements AutoCloseable {
     }
 
     public BestMove goNodes(long nodes, long timeoutMs) throws IOException, TimeoutException {
+        return goNodesWithMoves(null, nodes, timeoutMs);
+    }
+
+    public BestMove goNodesWithMoves(List<String> searchMoves, long nodes, long timeoutMs)
+            throws IOException, TimeoutException {
         positionSync();
         try {
             Thread.sleep(50);
         } catch (InterruptedException ignored) {
         }
         isReady(5000); // Sync before search
-        send("go nodes " + nodes);
+        String cmd = "go nodes " + nodes;
+        if (searchMoves != null && !searchMoves.isEmpty()) {
+            cmd += " searchmoves " + String.join(" ", searchMoves);
+        }
+        send(cmd);
         return waitBestMove(timeoutMs);
     }
 

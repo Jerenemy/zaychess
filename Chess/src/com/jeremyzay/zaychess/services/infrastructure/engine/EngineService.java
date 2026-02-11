@@ -1,5 +1,7 @@
 package com.jeremyzay.zaychess.services.infrastructure.engine;
 
+import java.util.List;
+
 public interface EngineService extends AutoCloseable {
     void start() throws Exception; // launch engine
 
@@ -16,6 +18,8 @@ public interface EngineService extends AutoCloseable {
     String bestMoveMs(int movetimeMs) throws Exception; // returns "e7e5" etc.
 
     String bestMove() throws Exception; // returns "e7e5" based on difficulty
+
+    String bestMove(List<String> searchMoves) throws Exception;
 
     @Override
     void close(); // shutdown

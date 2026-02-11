@@ -1076,21 +1076,57 @@ public class GameController implements NetworkTransport.Listener {
 		new Thread(() -> {
 			try {
 				GameState snap = gameState.snapshot();
-				if (engineDifficulty == 0) {
+				if (engineDifficulty <= 2) {
 					List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
 					if (!allMoves.isEmpty()) {
-						Move randomMove = allMoves.get(new java.util.Random().nextInt(allMoves.size()));
+						Move chosenMove;
+						if (engineDifficulty == 1) {
+							// Passive Random: Avoid captures if possible
+							List<Move> nonCaptures = allMoves.stream()
+									.filter(m -> m.getMoveType() != com.jeremyzay.zaychess.model.move.MoveType.CAPTURE
+											&& m.getMoveType() != com.jeremyzay.zaychess.model.move.MoveType.EN_PASSANT)
+									.toList();
+							if (!nonCaptures.isEmpty()) {
+								chosenMove = nonCaptures.get(new java.util.Random().nextInt(nonCaptures.size()));
+							} else {
+								chosenMove = allMoves.get(new java.util.Random().nextInt(allMoves.size()));
+							}
+						} else {
+							// Level 0: Pure random
+							chosenMove = allMoves.get(new java.util.Random().nextInt(allMoves.size()));
+						}
+
+						final Move finalMove = chosenMove;
 						SwingUtilities.invokeLater(() -> {
 							if (versionAtStart == engineMoveVersion) {
-								applyMoveAndNotify(randomMove, false);
+								applyMoveAndNotify(finalMove, false);
 								maybeEngineRespond();
 							}
 						});
 						return;
 					}
 				}
-				engine.setPositionFEN(NotationFEN.toFEN(snap));
-				String uci = engine.bestMove(); // Use difficulty-based move
+				String uci;
+				if (engineDifficulty == 2) {
+					// Smart Passive: Engine chooses BEST move that is not a capture
+					List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
+					List<String> quietUcis = allMoves.stream()
+							.filter(m -> m.getMoveType() != MoveType.CAPTURE
+									&& m.getMoveType() != MoveType.EN_PASSANT)
+							.map(this::encodeUci)
+							.toList();
+
+					engine.setPositionFEN(NotationFEN.toFEN(snap));
+					if (!quietUcis.isEmpty()) {
+						uci = engine.bestMove(quietUcis);
+					} else {
+						uci = engine.bestMove();
+					}
+				} else {
+					engine.setPositionFEN(NotationFEN.toFEN(snap));
+					uci = engine.bestMove(); // Standard difficulty logic
+				}
+
 				Move em = decodeUci(uci);
 				if (em != null) {
 					SwingUtilities.invokeLater(() -> {
@@ -1110,6 +1146,24 @@ public class GameController implements NetworkTransport.Listener {
 	}
 
 	// --- convert between your Position and UCI
+	private String encodeUci(Move m) {
+		String from = formatSquare(m.getFromPos());
+		String to = formatSquare(m.getToPos());
+		String prom = "";
+		if (m.getMoveType() == MoveType.PROMOTION && m.getPromotion() != null) {
+			prom = m.getPromotion().toString().toLowerCase().substring(0, 1);
+		}
+		return from + to + prom;
+	}
+
+	private String formatSquare(Position pos) {
+		char file = (char) ('a' + pos.getFile());
+		int rankNum = 7 - pos.getRank() + 1;
+		if (RANK0_IS_BOTTOM)
+			rankNum = pos.getRank() + 1;
+		return "" + file + rankNum;
+	}
+
 	private static final boolean RANK0_IS_BOTTOM = false; // set false if (0,0)==a8
 
 	private String sq(Position p) {

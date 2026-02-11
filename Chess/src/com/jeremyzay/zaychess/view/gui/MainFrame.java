@@ -312,6 +312,10 @@ public class MainFrame extends JFrame {
                     String text = "Level " + val;
                     if (val == 0)
                         text = "0 (Random)";
+                    if (val == 1)
+                        text = "1 (Passive Random)";
+                    if (val == 2)
+                        text = "2 (Smart Passive)";
                     if (val == 5)
                         text = "5 (Medium)";
                     if (val == 10)

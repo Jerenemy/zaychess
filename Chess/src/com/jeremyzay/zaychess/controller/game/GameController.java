@@ -1076,6 +1076,19 @@ public class GameController implements NetworkTransport.Listener {
 		new Thread(() -> {
 			try {
 				GameState snap = gameState.snapshot();
+				if (engineDifficulty == 1) {
+					List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
+					if (!allMoves.isEmpty()) {
+						Move randomMove = allMoves.get(new java.util.Random().nextInt(allMoves.size()));
+						SwingUtilities.invokeLater(() -> {
+							if (versionAtStart == engineMoveVersion) {
+								applyMoveAndNotify(randomMove, false);
+								maybeEngineRespond();
+							}
+						});
+						return;
+					}
+				}
 				engine.setPositionFEN(NotationFEN.toFEN(snap));
 				String uci = engine.bestMove(); // Use difficulty-based move
 				Move em = decodeUci(uci);

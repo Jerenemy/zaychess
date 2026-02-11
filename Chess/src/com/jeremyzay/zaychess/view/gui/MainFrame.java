@@ -296,7 +296,7 @@ public class MainFrame extends JFrame {
                     final int level = i;
                     String label = String.valueOf(i);
                     if (i == 1)
-                        label = "1 (Easy)";
+                        label = "1 (Random)";
                     if (i == 10)
                         label = "10 (Pro)";
 

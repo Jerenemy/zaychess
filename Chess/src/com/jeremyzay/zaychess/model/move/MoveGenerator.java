@@ -44,15 +44,18 @@ public abstract class MoveGenerator {
     }
 
     /**
-     * Placeholder: generates all legal moves for a piece whose color matches the
-     * turn.
+     * Generates all legal moves for the player whose turn it is.
      *
      * @param gameState current state
-     * @param pos       position of piece
-     * @return list of legal moves (currently unimplemented)
+     * @return list of all fully legal moves for the active color
      */
-    public static List<Move> generateLegalMovesInTurn(GameState gameState, Position pos) {
-        return null;
+    public static List<Move> generateAllLegalMovesInTurn(GameState gameState) {
+        List<Move> allMoves = new ArrayList<>();
+        List<com.jeremyzay.zaychess.model.pieces.Piece> pieces = gameState.getPiecesOfColor(gameState.getTurn());
+        for (com.jeremyzay.zaychess.model.pieces.Piece piece : pieces) {
+            allMoves.addAll(generateLegalMoves(gameState, piece.getPos()));
+        }
+        return allMoves;
     }
 
     /**

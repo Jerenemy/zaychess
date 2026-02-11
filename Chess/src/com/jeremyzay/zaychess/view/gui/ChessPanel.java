@@ -17,12 +17,12 @@ public class ChessPanel extends JPanel {
     private static final StatusPanel statusPanel = new StatusPanel();
     private final DragGlassPane dragGlassPane;
 
-    private JSplitPane rightSplit;
-    private JSplitPane leftSplit;
+    // private JSplitPane rightSplit; // Removed
+    // private JSplitPane leftSplit; // Removed
     private boolean movesVisible = true;
     private boolean capturedVisible = true;
-    private int lastRightDivider = -1;
-    private int lastLeftDivider = -1;
+    // private int lastRightDivider = -1; // Removed
+    // private int lastLeftDivider = -1; // Removed
     private JToggleButton movesToggle;
     private JToggleButton capturedToggle;
 
@@ -98,21 +98,10 @@ public class ChessPanel extends JPanel {
         // --------- CENTER: left captured | board | right moves ---------
         JComponent boardCenter = new AspectRatioPanel(boardPanel);
 
-        // Right split: board + move list
-        rightSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, boardCenter, moveListPanel);
-        rightSplit.setBorder(null);
-        rightSplit.setResizeWeight(1.0);
-        rightSplit.setOneTouchExpandable(true);
-        rightSplit.setDividerLocation(0.75);
-
-        // Left split: captured pieces + (board+moves)
-        leftSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, capturedPiecesPanel, rightSplit);
-        leftSplit.setBorder(null);
-        leftSplit.setResizeWeight(0.0);
-        leftSplit.setOneTouchExpandable(true);
-        leftSplit.setDividerLocation(180);
-
-        add(leftSplit, BorderLayout.CENTER);
+        // Add components to main layout
+        add(capturedPiecesPanel, BorderLayout.WEST);
+        add(boardCenter, BorderLayout.CENTER);
+        add(moveListPanel, BorderLayout.EAST);
         add(statusPanel, BorderLayout.SOUTH);
     }
 
@@ -161,13 +150,10 @@ public class ChessPanel extends JPanel {
 
     private void toggleMovesPanel() {
         if (movesVisible) {
-            lastRightDivider = rightSplit.getDividerLocation();
-            rightSplit.setRightComponent(null);
+            moveListPanel.setVisible(false);
             movesVisible = false;
         } else {
-            rightSplit.setRightComponent(moveListPanel);
-            if (lastRightDivider > 0)
-                rightSplit.setDividerLocation(lastRightDivider);
+            moveListPanel.setVisible(true);
             movesVisible = true;
         }
         if (movesToggle != null)
@@ -178,13 +164,10 @@ public class ChessPanel extends JPanel {
 
     private void toggleCapturedPanel() {
         if (capturedVisible) {
-            lastLeftDivider = leftSplit.getDividerLocation();
-            leftSplit.setLeftComponent(null);
+            capturedPiecesPanel.setVisible(false);
             capturedVisible = false;
         } else {
-            leftSplit.setLeftComponent(capturedPiecesPanel);
-            if (lastLeftDivider > 0)
-                leftSplit.setDividerLocation(lastLeftDivider);
+            capturedPiecesPanel.setVisible(true);
             capturedVisible = true;
         }
         if (capturedToggle != null)

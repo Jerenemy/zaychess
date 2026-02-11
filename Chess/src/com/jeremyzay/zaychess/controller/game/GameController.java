@@ -29,8 +29,7 @@ import com.jeremyzay.zaychess.view.gui.ChessPanel;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import java.awt.Color;
-import java.time.*;
-import java.time.format.DateTimeFormatter;
+
 import java.util.*;
 
 /**
@@ -594,7 +593,7 @@ public class GameController implements NetworkTransport.Listener {
 		// record history & logs
 		history.record(gameState, m, snap);
 		wireLog.add(encodeWire(m));
-		String line = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")) + " " + san;
+		String line = san;
 		dispatchMoveInfo(line);
 
 		// detect capture before applying
@@ -993,7 +992,7 @@ public class GameController implements NetworkTransport.Listener {
 			boardPanel.updateBoard(gameState.getBoard());
 		updatePostMoveUi();
 
-		String line = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")) + " " + san;
+		String line = san;
 		dispatchMoveInfo(line);
 	}
 

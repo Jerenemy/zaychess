@@ -7,9 +7,9 @@ import java.util.List;
 import javax.swing.*;
 
 /**
- * Revamped minimalist main menu with Robust Dynamic Scaling.
- * Guaranteed to fit even in wide/short windows by calculating scale based on
- * actual available height after decorations.
+ * Revamped minimalist main menu with Precise Dynamic Scaling.
+ * Guaranteed to fit even in extreme window shapes by using an algebraic
+ * fit-to-space calculation for the scale factor.
  */
 public class MainMenuPanel extends JPanel {
 
@@ -26,14 +26,17 @@ public class MainMenuPanel extends JPanel {
     private static final Color[] STRIPE_BOTTOM_SEQ = { WHITE, BLACK };
 
     // --- Scaling Reference Values ---
-    private static final int REF_W = 1200;
-    private static final int REF_MENU_H = 480; // Estimated height of (Title + 4 Buttons + Insets) at scale 1.0
-    private static final float MIN_SCALE = 0.1f; // User adjustable floor
+    // Reference values represent the size at scale 1.0
+    private static final int REF_W = 1000;
+    private static final int REF_MENU_H = 600; // Total vertical space needed for Menu (Title + Buttons + Insets)
+    private static final int STRIPE_UNITS = 8; // Total number of 6px nominal strips (4 top, 2+2 bottom)
+    private static final int STRIPE_NOMINAL_H = 6;
+    private static final float MIN_SCALE = 0.1f;
 
     // --- Dynamic State ---
     private float scale = 1.0f;
     private JLabel titleLabel;
-    private List<JButton> buttons = new ArrayList<>();
+    private final List<JButton> buttons = new ArrayList<>();
     private JPanel stripeNorth, stripeAbove, stripeBottom;
     private JPanel centerPanel;
 
@@ -71,33 +74,29 @@ public class MainMenuPanel extends JPanel {
         if (w <= 0 || h <= 0)
             return;
 
-        // 1. Determine Fixed Decoration Heights
-        // North stripes height: 4 strips * 6px (nominal) * scale
-        // We'll use a rough initial scale of w/REF_W for the decoration "greed"
-        float tempScale = (float) w / REF_W;
-        if (tempScale < MIN_SCALE)
-            tempScale = MIN_SCALE;
+        // --- Algebraic Scaling Calculation ---
+        // Rule: H = (REF_MENU_H * scale) + (w / 8 [Checkerboard]) + (STRIPE_UNITS *
+        // STRIPE_NOMINAL_H * scale)
+        // scale * (REF_MENU_H + STRIPE_UNITS * STRIPE_NOMINAL_H) = H - (w / 8)
 
-        int nH = (int) (6 * tempScale) * STRIPE_NORTH_SEQ.length;
-        int checkH = w / 8; // Checkerboard greedy squares
-        int sH = checkH + (int) (6 * tempScale) * (STRIPE_ABOVE_SEQ.length + STRIPE_BOTTOM_SEQ.length);
+        int checkH = w / 8;
+        int availableSpaceForScaleParts = h - checkH;
+        int totalUnitsForScale = REF_MENU_H + (STRIPE_UNITS * STRIPE_NOMINAL_H);
 
-        // 2. Calculate Available Height for Menu
-        int availableMenuH = h - nH - sH;
-
-        // 3. Compute Scaling Factor to fit available height
-        float scaleH = (float) availableMenuH / REF_MENU_H;
+        float scaleH = (float) availableSpaceForScaleParts / totalUnitsForScale;
         float scaleW = (float) w / REF_W;
 
-        // Final scale is limited by width but MUST respect available height
+        // Final scale is the minimum of height fit and width fit
         scale = Math.min(scaleW, scaleH);
+
+        // Safety floor
         if (scale < MIN_SCALE)
             scale = MIN_SCALE;
 
         // --- Apply Scaling ---
 
-        // 1. Stripes (Update to actual scale)
-        int finalStripeH = (int) (6 * scale);
+        // 1. Stripes
+        int finalStripeH = (int) (STRIPE_NOMINAL_H * scale);
         if (finalStripeH < 1)
             finalStripeH = 1;
         stripeNorth.setPreferredSize(new Dimension(0, finalStripeH * STRIPE_NORTH_SEQ.length));
@@ -108,10 +107,9 @@ public class MainMenuPanel extends JPanel {
         titleLabel.setFont(new Font("SansSerif", Font.BOLD, (int) (64 * scale)));
 
         // 3. Buttons
-        // Slightly smaller base size for better balance: 260x64
-        Dimension btnAlloc = new Dimension((int) (260 * scale), (int) (66 * scale));
+        Dimension btnAlloc = new Dimension((int) (300 * scale), (int) (72 * scale));
         for (JButton btn : buttons) {
-            btn.setFont(new Font("SansSerif", Font.BOLD, (int) (20 * scale)));
+            btn.setFont(new Font("SansSerif", Font.BOLD, (int) (22 * scale)));
             btn.setPreferredSize(btnAlloc);
             btn.setMinimumSize(btnAlloc);
             btn.setMaximumSize(btnAlloc);
@@ -125,7 +123,7 @@ public class MainMenuPanel extends JPanel {
 
         for (JButton btn : buttons) {
             GridBagConstraints gbcBtn = gbl.getConstraints(btn);
-            gbcBtn.insets = new Insets((int) (8 * scale), 0, (int) (8 * scale), 0);
+            gbcBtn.insets = new Insets((int) (10 * scale), 0, (int) (10 * scale), 0);
             gbl.setConstraints(btn, gbcBtn);
         }
 
@@ -204,8 +202,8 @@ public class MainMenuPanel extends JPanel {
             public Dimension getPreferredSize() {
                 Container parent = getTopLevelAncestor();
                 int w = (parent != null) ? parent.getWidth() : 800;
-                // Keep squares: height = width / 8
-                return new Dimension(w, Math.max(1, w / 8));
+                // Square cells: Height = Width / 8
+                return new Dimension(w, Math.round(w / 8.0f));
             }
         };
 

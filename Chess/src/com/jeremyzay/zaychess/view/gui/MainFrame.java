@@ -211,16 +211,19 @@ public class MainFrame extends JFrame {
                 buttonPanel.add(blackBtn);
                 content.add(buttonPanel);
 
-                content.add(Box.createRigidArea(new Dimension(0, 12)));
+                // Cancel button moved to footer
+                return content;
+            }
 
-                JButton cancelBtn = createOverlayButton("Cancel");
+            @Override
+            protected JComponent createFooter() {
+                JButton cancelBtn = createSecondaryButton("Cancel");
                 cancelBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
                 cancelBtn.addActionListener(e -> {
                     hideOverlay();
                     showMenu();
                 });
-                content.add(cancelBtn);
-                return content;
+                return cancelBtn;
             }
         }.showOverlay();
     }
@@ -259,7 +262,7 @@ public class MainFrame extends JFrame {
                 title.setAlignmentX(Component.CENTER_ALIGNMENT);
                 content.add(title);
 
-                JPanel buttonPanel = new JPanel(new GridLayout(1, 3, 16, 0));
+                JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 16, 0));
                 buttonPanel.setOpaque(false);
 
                 JButton humanBtn = createOverlayButton("vs Human");
@@ -290,14 +293,18 @@ public class MainFrame extends JFrame {
                     });
                 });
 
-                JButton cancelBtn = createOverlayButton("Cancel");
-                cancelBtn.addActionListener(e -> hideOverlay());
-
                 buttonPanel.add(humanBtn);
                 buttonPanel.add(aiBtn);
-                buttonPanel.add(cancelBtn);
                 content.add(buttonPanel);
                 return content;
+            }
+
+            @Override
+            protected JComponent createFooter() {
+                JButton cancelBtn = createSecondaryButton("Cancel");
+                cancelBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+                cancelBtn.addActionListener(e -> hideOverlay());
+                return cancelBtn;
             }
         }.showOverlay();
     }

@@ -49,6 +49,15 @@ public abstract class OverlayPanel extends JPanel {
     protected abstract JPanel createContent();
 
     /**
+     * Optional footer component to display below the card.
+     * 
+     * @return JPanel or other Component, or null if none.
+     */
+    protected JComponent createFooter() {
+        return null; // default null
+    }
+
+    /**
      * Show this overlay on the MainFrame glass pane.
      */
     private Component previousGlassPane;
@@ -59,6 +68,32 @@ public abstract class OverlayPanel extends JPanel {
         if (card.getComponentCount() == 0) {
             card.add(createContent(), BorderLayout.CENTER);
         }
+
+        // Restructure layout to support footer outside the card
+        // Clean up any previous additions to 'this' (GridBagLayout)
+        removeAll();
+
+        JPanel wrapper = new JPanel();
+        wrapper.setOpaque(false);
+        wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
+
+        // Add card to wrapper
+        card.setAlignmentX(Component.CENTER_ALIGNMENT);
+        wrapper.add(card);
+
+        JComponent footer = createFooter();
+        if (footer != null) {
+            wrapper.add(Box.createVerticalStrut(20)); // Spacing
+            footer.setAlignmentX(Component.CENTER_ALIGNMENT);
+            wrapper.add(footer);
+        }
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.CENTER;
+        add(wrapper, gbc);
+
         MainFrame frame = MainFrame.getInstance();
         previousGlassPane = frame.getGlassPane();
         previousGlassPaneVisible = previousGlassPane.isVisible();
@@ -103,10 +138,13 @@ public abstract class OverlayPanel extends JPanel {
 
         // 2. White card background (centered around the card component)
         if (card.getWidth() > 0 && card.getHeight() > 0) {
-            int cx = card.getX();
-            int cy = card.getY();
+            // Calculate position of card relative to this overlay
+            Point p = SwingUtilities.convertPoint(card, 0, 0, this);
+            int cx = p.x;
+            int cy = p.y;
             int cw = card.getWidth();
             int ch = card.getHeight();
+
             // Add some padding around the card
             int pad = 8;
             g2.setColor(CARD_BG);
@@ -129,6 +167,46 @@ public abstract class OverlayPanel extends JPanel {
         btn.setFocusPainted(false);
         btn.setPreferredSize(new Dimension(160, 50));
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return btn;
+    }
+
+    /**
+     * Creates a secondary action button (transparent/gray) similar to
+     * LoadingOverlay cancel button.
+     */
+    protected static JButton createSecondaryButton(String text) {
+        JButton btn = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // base + hover/press alpha
+                float alpha = 0.20f;
+                ButtonModel m = getModel();
+                if (m.isRollover())
+                    alpha = 0.40f;
+                if (m.isPressed())
+                    alpha = 0.60f;
+
+                g2.setComposite(AlphaComposite.SrcOver.derive(alpha));
+                g2.setColor(Color.WHITE);
+                int arc = 20; // rounded corners
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
+                g2.dispose();
+
+                super.paintComponent(g);
+            }
+        };
+
+        btn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        btn.setForeground(Color.WHITE);
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(false);
+        btn.setContentAreaFilled(false);
+        btn.setOpaque(false);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setPreferredSize(new Dimension(140, 40));
         return btn;
     }
 

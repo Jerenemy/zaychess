@@ -737,6 +737,7 @@ public class GameController implements NetworkTransport.Listener {
 		if (boardPanel != null) {
 			boardPanel.clearHighlights(com.jeremyzay.zaychess.view.gui.theme.HighlightType.SELECTION);
 			boardPanel.clearHighlights(com.jeremyzay.zaychess.view.gui.theme.HighlightType.CHECKMATE);
+			boardPanel.clearHighlights(com.jeremyzay.zaychess.view.gui.theme.HighlightType.CHECK);
 			boardPanel.clearHighlights(com.jeremyzay.zaychess.view.gui.theme.HighlightType.LAST_MOVE);
 
 			// If playing vs Engine or Hotseat, we might need to reset orientation?
@@ -902,8 +903,10 @@ public class GameController implements NetworkTransport.Listener {
 	/** Helper: undoes a single move and updates UI */
 	private void undoSingleMove() {
 		history.undo(gameState); // restores snapshot
-		if (boardPanel != null)
+		if (boardPanel != null) {
+			boardPanel.clearHighlights(com.jeremyzay.zaychess.view.gui.theme.HighlightType.CHECKMATE);
 			boardPanel.updateBoard(gameState.getBoard());
+		}
 		updatePostMoveUi();
 
 		// remove last line from the move list

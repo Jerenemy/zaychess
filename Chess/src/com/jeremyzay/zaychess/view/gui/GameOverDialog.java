@@ -5,68 +5,78 @@ import java.awt.*;
 import com.jeremyzay.zaychess.model.util.PlayerColor;
 import com.jeremyzay.zaychess.model.pieces.King;
 
-public class GameOverDialog extends JDialog {
+/**
+ * Inline overlay shown when the game ends.
+ * Displays the result message, winner icon, and Rematch/Menu buttons.
+ */
+public class GameOverDialog extends OverlayPanel {
 
-    public GameOverDialog(Frame owner, String title, String message, PlayerColor winner, Runnable onRematch,
-            Runnable onMenu) {
-        super(owner, title, true);
-        setLayout(new BorderLayout());
+    private final String message;
+    private final PlayerColor winner;
+    private final Runnable onRematch;
+    private final Runnable onMenu;
 
-        JPanel centerPanel = new JPanel(new BorderLayout());
-        centerPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 10, 20));
+    public GameOverDialog(String message, PlayerColor winner,
+            Runnable onRematch, Runnable onMenu) {
+        this.message = message;
+        this.winner = winner;
+        this.onRematch = onRematch;
+        this.onMenu = onMenu;
+    }
 
-        // Icon (if winner exists)
+    @Override
+    protected JPanel createContent() {
+        JPanel content = new JPanel();
+        content.setOpaque(false);
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+
+        // Title
+        JLabel title = createTitle("Game Over");
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+        content.add(title);
+
+        // Winner icon
         if (winner != null) {
-            // Create a dummy King to get the icon
             King dummyKing = new King(winner, null);
             Icon icon = ResourceLoader.getPieceIcon(dummyKing, 80);
             JLabel iconLabel = new JLabel(icon);
-            iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
-            centerPanel.add(iconLabel, BorderLayout.CENTER);
+            iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+            content.add(iconLabel);
+            content.add(Box.createRigidArea(new Dimension(0, 8)));
         }
 
         // Message
-        JLabel messageLabel = new JLabel("<html><div style='text-align: center;'>" + message + "</div></html>",
+        JLabel msgLabel = new JLabel(
+                "<html><div style='text-align: center;'>" + message + "</div></html>",
                 SwingConstants.CENTER);
-        messageLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
-        messageLabel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
-        centerPanel.add(messageLabel, BorderLayout.SOUTH);
+        msgLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        msgLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        msgLabel.setForeground(Color.DARK_GRAY);
+        content.add(msgLabel);
+        content.add(Box.createRigidArea(new Dimension(0, 20)));
 
-        add(centerPanel, BorderLayout.CENTER);
-
-        // Buttons Panel
+        // Buttons
         JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 20, 0));
-        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 20, 20));
+        buttonPanel.setOpaque(false);
 
-        // Rematch Button
-        JButton rematchBtn = new JButton("Rematch");
-        rematchBtn.setFont(new Font("SansSerif", Font.BOLD, 16));
-        rematchBtn.setFocusable(false);
+        JButton rematchBtn = createOverlayButton("Rematch");
         rematchBtn.addActionListener(e -> {
-            dispose();
+            hideOverlay();
             if (onRematch != null)
                 onRematch.run();
         });
 
-        // Menu Button
-        JButton menuBtn = new JButton("Menu");
-        menuBtn.setFont(new Font("SansSerif", Font.BOLD, 16));
-        menuBtn.setFocusable(false);
+        JButton menuBtn = createOverlayButton("Menu");
         menuBtn.addActionListener(e -> {
-            dispose();
+            hideOverlay();
             if (onMenu != null)
                 onMenu.run();
         });
 
         buttonPanel.add(rematchBtn);
         buttonPanel.add(menuBtn);
+        content.add(buttonPanel);
 
-        add(buttonPanel, BorderLayout.SOUTH);
-
-        pack();
-        setLocationRelativeTo(owner);
-        setResizable(false);
-        setVisible(true);
+        return content;
     }
-
 }

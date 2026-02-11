@@ -2,7 +2,6 @@ package com.jeremyzay.zaychess.view.gui;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.IOException;
 
 import com.jeremyzay.zaychess.controller.game.GameController;
 import com.jeremyzay.zaychess.controller.game.GameLauncher;
@@ -41,14 +40,13 @@ public class MainFrame extends JFrame {
         }
 
         // Add Views
-        // Menu added parameters based on MainMenuPanel constructor
-        MainMenuPanel menuPanel = new MainMenuPanel(this, 700); // 700 is height
+        MainMenuPanel menuPanel = new MainMenuPanel(this, 700);
         addView(VIEW_MENU, menuPanel);
 
         add(mainPanel);
         setSize(1000, 700);
         setLocationRelativeTo(null);
-        showMenu(); // Show menu by default
+        showMenu();
     }
 
     public static MainFrame getInstance() {
@@ -73,7 +71,6 @@ public class MainFrame extends JFrame {
         System.out.println("[DEBUG] resetGameSessionAsync called.");
         setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
 
-        // 1. Cleanup Old (Background)
         new Thread(() -> {
             if (controller != null) {
                 System.out.println("[DEBUG] Stopping engine/network in background...");
@@ -82,7 +79,6 @@ public class MainFrame extends JFrame {
                 System.out.println("[DEBUG] Engine/network stopped.");
             }
 
-            // 2. Setup New (EDT)
             SwingUtilities.invokeLater(() -> {
                 System.out.println("[DEBUG] Finishing reset on EDT...");
                 gameState.restoreFrom(new GameState());
@@ -110,72 +106,120 @@ public class MainFrame extends JFrame {
         });
     }
 
-    // Called by GameLauncher
     public void switchToGame(JPanel gamePanel) {
-        // ... (existing logic)
         mainPanel.add(gamePanel, VIEW_GAME);
         showView(VIEW_GAME);
     }
 
+    // --- Play vs Computer (inline side selection) ---
+
     public void startVsComputer() {
         resetGameSessionAsync(() -> {
-            // setEngine involves I/O and might block, so run it in background too
-            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-            new Thread(() -> {
+            showLoadingOverlay("Initializing AI...", null, () -> {
                 controller.setEngine();
-                SwingUtilities.invokeLater(() -> {
-                    setCursor(Cursor.getDefaultCursor());
-                    if (controller.isUsingEngine()) {
-                        showAISideSelectionDialog();
-                    }
-                });
-            }).start();
+            }, () -> {
+                if (controller.isUsingEngine()) {
+                    showSideSelectionOverlay(side -> launchEngineGame(side));
+                }
+            });
         });
     }
 
-    private void showAISideSelectionDialog() {
-        JDialog dialog = new JDialog(this, "Choose Side", true);
-        dialog.setLayout(new BorderLayout());
+    /**
+     * Shows a LoadingOverlay on the glass pane while a background task runs.
+     * 
+     * @param message  text to display
+     * @param onCancel optional cancel action (null = no cancel button)
+     * @param bgTask   work to run on a background thread
+     * @param onDone   callback on EDT after bgTask completes
+     */
+    private void showLoadingOverlay(String message, Runnable onCancel,
+            Runnable bgTask, Runnable onDone) {
+        LoadingOverlay overlay = new LoadingOverlay(message, onCancel != null ? e -> {
+            onCancel.run();
+        } : null);
+        setGlassPane(overlay);
+        overlay.setVisible(true);
+        overlay.start();
 
-        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 20, 0));
-        buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        new Thread(() -> {
+            bgTask.run();
+            SwingUtilities.invokeLater(() -> {
+                overlay.stop();
+                overlay.setVisible(false);
+                // Restore blank glass pane
+                JPanel blank = new JPanel();
+                blank.setOpaque(false);
+                blank.setVisible(false);
+                setGlassPane(blank);
+                if (onDone != null)
+                    onDone.run();
+            });
+        }).start();
+    }
 
-        King whiteKing = new King(PlayerColor.WHITE, null);
-        King blackKing = new King(PlayerColor.BLACK, null);
-        int iconSize = 80;
+    /**
+     * Shows an inline overlay for choosing White or Black side.
+     * 
+     * @param onSelect callback receiving the chosen PlayerColor
+     */
+    private void showSideSelectionOverlay(java.util.function.Consumer<PlayerColor> onSelect) {
+        new OverlayPanel() {
+            @Override
+            protected JPanel createContent() {
+                JPanel content = new JPanel();
+                content.setOpaque(false);
+                content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
 
-        JButton whiteBtn = new JButton("White");
-        whiteBtn.setIcon(ResourceLoader.getPieceIcon(whiteKing, iconSize));
-        whiteBtn.addActionListener(e -> {
-            dialog.dispose();
-            launchEngineGame(PlayerColor.WHITE);
-        });
+                JLabel title = createTitle("Choose Side");
+                title.setAlignmentX(Component.CENTER_ALIGNMENT);
+                content.add(title);
 
-        JButton blackBtn = new JButton("Black");
-        blackBtn.setIcon(ResourceLoader.getPieceIcon(blackKing, iconSize));
-        blackBtn.addActionListener(e -> {
-            dialog.dispose();
-            launchEngineGame(PlayerColor.BLACK);
-        });
+                JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 20, 0));
+                buttonPanel.setOpaque(false);
 
-        buttonPanel.add(whiteBtn);
-        buttonPanel.add(blackBtn);
-        dialog.add(buttonPanel, BorderLayout.CENTER);
-        dialog.pack();
-        dialog.setLocationRelativeTo(this);
-        dialog.setVisible(true);
+                King whiteKing = new King(PlayerColor.WHITE, null);
+                King blackKing = new King(PlayerColor.BLACK, null);
+                int iconSize = 80;
+
+                JButton whiteBtn = createOverlayButton("White");
+                whiteBtn.setIcon(ResourceLoader.getPieceIcon(whiteKing, iconSize));
+                whiteBtn.addActionListener(e -> {
+                    hideOverlay();
+                    onSelect.accept(PlayerColor.WHITE);
+                });
+
+                JButton blackBtn = createOverlayButton("Black");
+                blackBtn.setIcon(ResourceLoader.getPieceIcon(blackKing, iconSize));
+                blackBtn.addActionListener(e -> {
+                    hideOverlay();
+                    onSelect.accept(PlayerColor.BLACK);
+                });
+
+                buttonPanel.add(whiteBtn);
+                buttonPanel.add(blackBtn);
+                content.add(buttonPanel);
+
+                content.add(Box.createRigidArea(new Dimension(0, 12)));
+
+                JButton cancelBtn = createOverlayButton("Cancel");
+                cancelBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+                cancelBtn.addActionListener(e -> {
+                    hideOverlay();
+                    showMenu();
+                });
+                content.add(cancelBtn);
+                return content;
+            }
+        }.showOverlay();
     }
 
     private void launchEngineGame(PlayerColor humanSide) {
-        // GameLauncher.launch is already called in startVsComputer? No, that was
-        // creating controller.
-        // Wait, startVsComputer calls reset -> setEngine -> showDialog.
-        // Dialog calls launchEngineGame.
-        // We need to launch here.
         GameLauncher.launch(gameState, controller);
         controller.startEngineGame(humanSide);
-        // ChessPanel.getMoveListPanel().clearMoves(); // Already cleared in reset
     }
+
+    // --- Load Saved Game (inline mode selection) ---
 
     public void loadLocalGame() {
         FileDialog fd = new FileDialog(this, "Load Game", FileDialog.LOAD);
@@ -188,81 +232,70 @@ public class MainFrame extends JFrame {
             return;
         java.io.File selectedFile = new java.io.File(fd.getDirectory(), fileName);
 
-        Object[] options = { "vs Human", "vs AI", "Cancel" };
-        int choice = JOptionPane.showOptionDialog(this, "Continue this game against:", "Load Game Mode",
-                JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
-
-        if (choice == 0) {
-            resetGameSessionAsync(() -> {
-                try {
-                    GameLauncher.launch(gameState, controller);
-                    new SaveManager(controller).loadGame(selectedFile);
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(this, "Error loading: " + ex.getMessage());
-                }
-            });
-        } else if (choice == 1) {
-            resetGameSessionAsync(() -> {
-                try {
-                    // setEngine might be slow
-                    setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-                    new Thread(() -> {
-                        controller.setEngine();
-                        SwingUtilities.invokeLater(() -> {
-                            setCursor(Cursor.getDefaultCursor());
-                            if (controller.isUsingEngine()) {
-                                showAISideSelectionDialogForLoad(selectedFile);
-                            }
-                        });
-                    }).start();
-                } catch (Exception e) {
-                }
-            });
-        }
+        // Inline overlay for choosing load mode
+        showLoadModeOverlay(selectedFile);
     }
 
-    private void showAISideSelectionDialogForLoad(java.io.File file) {
-        // ... (existing implementation)
-        JDialog dialog = new JDialog(this, "Choose Your Side", true);
-        dialog.setLayout(new BorderLayout());
+    private void showLoadModeOverlay(java.io.File selectedFile) {
+        new OverlayPanel() {
+            @Override
+            protected JPanel createContent() {
+                JPanel content = new JPanel();
+                content.setOpaque(false);
+                content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
 
-        JPanel buttonPanel = new JPanel(new java.awt.GridLayout(1, 2, 20, 0));
-        buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+                JLabel title = createTitle("Continue this game against:");
+                title.setAlignmentX(Component.CENTER_ALIGNMENT);
+                content.add(title);
 
-        King whiteKing = new King(PlayerColor.WHITE, null);
-        King blackKing = new King(PlayerColor.BLACK, null);
+                JPanel buttonPanel = new JPanel(new GridLayout(1, 3, 16, 0));
+                buttonPanel.setOpaque(false);
 
-        int iconSize = 80;
+                JButton humanBtn = createOverlayButton("vs Human");
+                humanBtn.addActionListener(e -> {
+                    hideOverlay();
+                    resetGameSessionAsync(() -> {
+                        try {
+                            GameLauncher.launch(gameState, controller);
+                            new SaveManager(controller).loadGame(selectedFile);
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(MainFrame.this,
+                                    "Error loading: " + ex.getMessage());
+                        }
+                    });
+                });
 
-        JButton whiteBtn = new JButton("White");
-        whiteBtn.setIcon(ResourceLoader.getPieceIcon(whiteKing, iconSize));
-        whiteBtn.addActionListener(e -> {
-            dialog.dispose();
-            finishLoadVsAI(file, PlayerColor.WHITE);
-        });
+                JButton aiBtn = createOverlayButton("vs AI");
+                aiBtn.addActionListener(e -> {
+                    hideOverlay();
+                    resetGameSessionAsync(() -> {
+                        showLoadingOverlay("Initializing AI...", null, () -> {
+                            controller.setEngine();
+                        }, () -> {
+                            if (controller.isUsingEngine()) {
+                                showSideSelectionOverlay(side -> finishLoadVsAI(selectedFile, side));
+                            }
+                        });
+                    });
+                });
 
-        JButton blackBtn = new JButton("Black");
-        blackBtn.setIcon(ResourceLoader.getPieceIcon(blackKing, iconSize));
-        blackBtn.addActionListener(e -> {
-            dialog.dispose();
-            finishLoadVsAI(file, PlayerColor.BLACK);
-        });
+                JButton cancelBtn = createOverlayButton("Cancel");
+                cancelBtn.addActionListener(e -> hideOverlay());
 
-        buttonPanel.add(whiteBtn);
-        buttonPanel.add(blackBtn);
-        dialog.add(buttonPanel, BorderLayout.CENTER);
-        dialog.pack();
-        dialog.setLocationRelativeTo(this);
-        dialog.setVisible(true);
+                buttonPanel.add(humanBtn);
+                buttonPanel.add(aiBtn);
+                buttonPanel.add(cancelBtn);
+                content.add(buttonPanel);
+                return content;
+            }
+        }.showOverlay();
     }
 
     private void finishLoadVsAI(java.io.File file, PlayerColor humanSide) {
         try {
             GameLauncher.launch(gameState, controller);
-            // moves cleared in reset
             new SaveManager(controller).loadGame(file);
 
-            // Sync engine
             String fen = FenGenerator.toFen(gameState);
             controller.syncEnginePosition(fen);
             controller.startEngineGame(humanSide);
@@ -271,38 +304,37 @@ public class MainFrame extends JFrame {
         }
     }
 
+    // --- Online Matchmaking ---
+
     public void startOnlineMatchmaking() {
         resetGameSessionAsync(() -> {
-            // Create atomic ref for the client so we can cancel it
             java.util.concurrent.atomic.AtomicReference<com.jeremyzay.zaychess.services.infrastructure.network.RelayClient> clientRef = new java.util.concurrent.atomic.AtomicReference<>();
 
-            LoadingOverlay loadingOverlay = new LoadingOverlay("Waiting for opponent...", e -> {
+            final LoadingOverlay[] holder = { null };
+            holder[0] = new LoadingOverlay("Waiting for opponent...", e -> {
                 com.jeremyzay.zaychess.services.infrastructure.network.RelayClient client = clientRef.get();
                 if (client != null) {
                     client.close();
                 }
-                showMenu(); // Return to menu on cancel
+                // Remove overlay and return to menu
+                holder[0].stop();
+                holder[0].setVisible(false);
+                JPanel blank = new JPanel();
+                blank.setOpaque(false);
+                blank.setVisible(false);
+                setGlassPane(blank);
+                showMenu();
             });
+            LoadingOverlay loadingOverlay = holder[0];
 
-            addView(VIEW_LOADING, loadingOverlay);
-            showView(VIEW_LOADING);
+            // Show as glass pane overlay on top of darkened menu
+            setGlassPane(loadingOverlay);
+            loadingOverlay.setVisible(true);
             loadingOverlay.start();
 
             new Thread(() -> {
                 GameLauncher.launchOnline(gameState, controller, null, clientRef);
             }).start();
         });
-    }
-
-    // kept for reference or other uses
-    private JDialog openWaitingDialog(String title) {
-        JDialog dialog = new JDialog(this, title, false);
-        JProgressBar progressBar = new JProgressBar();
-        progressBar.setIndeterminate(true);
-        dialog.add(progressBar);
-        dialog.setSize(300, 75);
-        dialog.setLocationRelativeTo(this);
-        dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-        return dialog;
     }
 }

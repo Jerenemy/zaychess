@@ -506,12 +506,16 @@ public class GameController implements NetworkTransport.Listener {
 			return;
 		}
 		if (m.getMoveType() == MoveType.PROMOTION) {
-			PromotionPiece choice = PromotionDialog.prompt(boardPanel, gameState.getTurn()); // color of the mover
-			if (choice == null)
-				return; // user cancelled
-			m = m.withPromotion(choice);
+			final Move promotionMove = m;
+			PromotionDialog.prompt(boardPanel, gameState.getTurn(), choice -> {
+				if (choice == null)
+					return; // user cancelled
+				Move promoted = promotionMove.withPromotion(choice);
+				applyMoveAndNotify(promoted, /* broadcast */ true);
+				maybeEngineRespond();
+			});
+			return;
 		}
-		// ai
 		applyMoveAndNotify(m, /* broadcast */ true);
 		maybeEngineRespond();
 
@@ -549,10 +553,15 @@ public class GameController implements NetworkTransport.Listener {
 		}
 
 		if (m.getMoveType() == MoveType.PROMOTION) {
-			PromotionPiece choice = PromotionDialog.prompt(boardPanel, gameState.getTurn());
-			if (choice == null)
-				return false; // user cancelled
-			m = m.withPromotion(choice);
+			final Move promotionMove = m;
+			PromotionDialog.prompt(boardPanel, gameState.getTurn(), choice -> {
+				if (choice == null)
+					return;
+				Move promoted = promotionMove.withPromotion(choice);
+				applyMoveAndNotify(promoted, /* broadcast */ true);
+				maybeEngineRespond();
+			});
+			return true; // move is pending promotion selection
 		}
 
 		applyMoveAndNotify(m, /* broadcast */ true);
@@ -684,17 +693,12 @@ public class GameController implements NetworkTransport.Listener {
 
 		ChessPanel.getStatusPanel().setStatus(msg, java.awt.Color.GREEN);
 
-		java.awt.Window win = SwingUtilities.getWindowAncestor(boardPanel);
-		java.awt.Frame frame = (win instanceof java.awt.Frame) ? (java.awt.Frame) win : null;
-
 		if (!suppressDialogs) {
 			new com.jeremyzay.zaychess.view.gui.GameOverDialog(
-					frame,
-					"Game Over",
 					msg,
 					winner,
 					this::restartGame,
-					this::returnToMenu);
+					this::returnToMenu).showOverlay();
 		}
 	}
 

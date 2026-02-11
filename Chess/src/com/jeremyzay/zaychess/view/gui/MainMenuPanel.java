@@ -68,6 +68,16 @@ public class MainMenuPanel extends JPanel {
         });
     }
 
+    /**
+     * Enables or disables all menu buttons.
+     * Used to prevent concurrent session starts during reset.
+     */
+    public void setMenuEnabled(boolean enabled) {
+        for (JButton btn : buttons) {
+            btn.setEnabled(enabled);
+        }
+    }
+
     private void updateScaling() {
         int w = getWidth();
         int h = getHeight();

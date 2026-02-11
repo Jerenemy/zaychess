@@ -18,6 +18,8 @@ public class MainFrame extends JFrame {
 
     private GameState gameState;
     private GameController controller;
+    private MainMenuPanel menuPanel;
+    private boolean isResetting = false;
 
     public static final String VIEW_MENU = "MENU";
     public static final String VIEW_GAME = "GAME";
@@ -40,7 +42,7 @@ public class MainFrame extends JFrame {
         }
 
         // Add Views
-        MainMenuPanel menuPanel = new MainMenuPanel(this, 700);
+        menuPanel = new MainMenuPanel(this, 700);
         addView(VIEW_MENU, menuPanel);
 
         add(mainPanel);
@@ -63,12 +65,28 @@ public class MainFrame extends JFrame {
     }
 
     public void showMenu() {
+        // Force cleanup of overlays and glass pane
+        JPanel blank = new JPanel();
+        blank.setOpaque(false);
+        blank.setVisible(false);
+        setGlassPane(blank);
+        getGlassPane().setVisible(false);
+        setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+
         showView(VIEW_MENU);
     }
 
     // --- Game Lifecycle Methods ---
 
     private void resetGameSessionAsync(Runnable onComplete) {
+        if (isResetting)
+            return;
+        isResetting = true;
+
+        if (menuPanel != null) {
+            menuPanel.setMenuEnabled(false);
+        }
+
         System.out.println("[DEBUG] resetGameSessionAsync called.");
         setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
 
@@ -98,6 +116,10 @@ public class MainFrame extends JFrame {
                 ChessPanel.getMoveListPanel().clearMoves();
 
                 setCursor(Cursor.getDefaultCursor());
+                isResetting = false;
+                if (menuPanel != null) {
+                    menuPanel.setMenuEnabled(true);
+                }
 
                 if (onComplete != null) {
                     onComplete.run();
@@ -139,32 +161,54 @@ public class MainFrame extends JFrame {
      * @param bgTask   work to run on a background thread
      * @param onDone   callback on EDT after bgTask completes
      */
-    private void showLoadingOverlay(String message, Runnable onCancel,
-            Runnable bgTask, Runnable onDone) {
-        LoadingOverlay overlay = new LoadingOverlay(message, onCancel != null ? e -> {
-            onCancel.run();
-        } : null);
-        setGlassPane(overlay);
-        overlay.setVisible(true);
-        overlay.start();
+    public void showLoadingOverlay(String message, Runnable onCancel, Runnable bgTask, Runnable onDone) {
+        showLoadingOverlay(message, onCancel, bgTask, onDone, false);
+    }
+
+    /**
+     * Shows a LoadingOverlay on the glass pane.
+     * 
+     * @param message    text to display
+     * @param onCancel   optional cancel action (null = no cancel button)
+     * @param bgTask     work to run on a background thread
+     * @param onDone     callback on EDT after bgTask completes (not used if
+     *                   persistent)
+     * @param persistent if true, the overlay will NOT be auto-closed when bgTask
+     *                   completes.
+     *                   The caller is responsible for calling stop() on the
+     *                   overlay.
+     */
+    public void showLoadingOverlay(String message, Runnable onCancel, Runnable bgTask, Runnable onDone,
+            boolean persistent) {
+        final LoadingOverlay[] holder = { null };
+        holder[0] = new LoadingOverlay(message, e -> {
+            if (onCancel != null)
+                onCancel.run();
+            holder[0].stop();
+            showMenu();
+        });
+
+        setGlassPane(holder[0]);
+        getGlassPane().setVisible(true); // Force visibility
+        holder[0].start();
 
         new Thread(() -> {
             try {
-                bgTask.run();
-            } catch (Throwable t) {
-                t.printStackTrace();
+                if (bgTask != null)
+                    bgTask.run();
             } finally {
-                SwingUtilities.invokeLater(() -> {
-                    overlay.stop();
-                    overlay.setVisible(false);
-                    // Restore blank glass pane
-                    JPanel blank = new JPanel();
-                    blank.setOpaque(false);
-                    blank.setVisible(false);
-                    setGlassPane(blank);
-                    if (onDone != null)
-                        onDone.run();
-                });
+                if (!persistent) {
+                    SwingUtilities.invokeLater(() -> {
+                        holder[0].stop();
+                        // Restore blank glass pane
+                        JPanel blank = new JPanel();
+                        blank.setOpaque(false);
+                        blank.setVisible(false);
+                        setGlassPane(blank);
+                        if (onDone != null)
+                            onDone.run();
+                    });
+                }
             }
         }).start();
     }
@@ -329,33 +373,15 @@ public class MainFrame extends JFrame {
             java.util.concurrent.atomic.AtomicReference<com.jeremyzay.zaychess.services.infrastructure.network.RelayClient> clientRef = new java.util.concurrent.atomic.AtomicReference<>();
             java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean(false);
 
-            final LoadingOverlay[] holder = { null };
-            holder[0] = new LoadingOverlay("Waiting for opponent...", e -> {
+            showLoadingOverlay("Waiting for opponent...", () -> {
                 cancelled.set(true);
-
                 com.jeremyzay.zaychess.services.infrastructure.network.RelayClient client = clientRef.get();
                 if (client != null) {
                     client.close();
                 }
-                // Remove overlay and return to menu
-                holder[0].stop();
-                holder[0].setVisible(false);
-                JPanel blank = new JPanel();
-                blank.setOpaque(false);
-                blank.setVisible(false);
-                setGlassPane(blank);
-                showMenu();
-            });
-            LoadingOverlay loadingOverlay = holder[0];
-
-            // Show as glass pane overlay on top of darkened menu
-            setGlassPane(loadingOverlay);
-            loadingOverlay.setVisible(true);
-            loadingOverlay.start();
-
-            new Thread(() -> {
+            }, () -> {
                 GameLauncher.launchOnline(gameState, controller, null, clientRef, cancelled);
-            }).start();
+            }, null, true); // true = persistent, launchOnline is async!
         });
     }
 }

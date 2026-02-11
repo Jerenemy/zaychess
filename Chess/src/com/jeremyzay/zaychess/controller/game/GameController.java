@@ -992,6 +992,8 @@ public class GameController implements NetworkTransport.Listener {
 			return; // not an AI game
 		if (isOnline())
 			return; // AI not for network games
+		if (gameState.isGameOver())
+			return; // game already ended
 		if (gameState.getTurn() != localSide)
 			engineMoveAsync();
 	}
@@ -999,6 +1001,8 @@ public class GameController implements NetworkTransport.Listener {
 	private void engineMoveAsync() {
 		if (engine == null || engineThinking)
 			return;
+		if (gameState.isGameOver())
+			return; // don't ask engine for moves after game over
 		engineThinking = true;
 		final int versionAtStart = engineMoveVersion;
 		new Thread(() -> {
@@ -1040,10 +1044,14 @@ public class GameController implements NetworkTransport.Listener {
 	}
 
 	private Position parseSquare(String s) {
+		if (s == null || s.length() < 2)
+			return null;
 		int file = s.charAt(0) - 'a';
 		int rank = s.charAt(1) - '1';
 		if (!RANK0_IS_BOTTOM)
 			rank = 7 - rank;
+		if (file < 0 || file > 7 || rank < 0 || rank > 7)
+			return null;
 		return new Position(rank, file);
 	}
 
@@ -1052,6 +1060,8 @@ public class GameController implements NetworkTransport.Listener {
 			return null;
 		Position from = parseSquare(uci.substring(0, 2));
 		Position to = parseSquare(uci.substring(2, 4));
+		if (from == null || to == null)
+			return null; // invalid UCI string (e.g. "(none)", "0000")
 		PromotionPiece promo = null;
 		if (uci.length() >= 5) {
 			promo = switch (Character.toLowerCase(uci.charAt(4))) {

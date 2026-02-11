@@ -235,6 +235,10 @@ public class MainMenuPanel extends JPanel {
                     });
                     restoreTimer.setRepeats(false);
                     restoreTimer.start();
+                } else if (!isDraggingToy && draggedPiece != null) {
+                    // It was a click!
+                    draggedPiece.cycleColor();
+                    repaint();
                 }
                 draggedPiece = null;
                 isDraggingToy = false;
@@ -254,13 +258,30 @@ public class MainMenuPanel extends JPanel {
     }
 
     private class MenuPiece {
-        final Piece piece;
+        Piece piece;
         final int col;
         boolean visible = true;
 
         MenuPiece(Piece piece, int col) {
             this.piece = piece;
             this.col = col;
+        }
+
+        void cycleColor() {
+            PlayerColor next = (piece.getColor() == PlayerColor.BLACK) ? PlayerColor.WHITE : PlayerColor.BLACK;
+            Position pos = piece.getPos();
+            if (piece instanceof Rook)
+                piece = new Rook(next, pos);
+            else if (piece instanceof Knight)
+                piece = new Knight(next, pos);
+            else if (piece instanceof Bishop)
+                piece = new Bishop(next, pos);
+            else if (piece instanceof Queen)
+                piece = new Queen(next, pos);
+            else if (piece instanceof King)
+                piece = new King(next, pos);
+            else if (piece instanceof Pawn)
+                piece = new Pawn(next, pos);
         }
 
         Rectangle getBounds() {

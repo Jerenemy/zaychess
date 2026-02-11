@@ -93,24 +93,18 @@ public final class SerendipityEngineService implements EngineService {
     @Override
     public String bestMove(java.util.List<String> searchMoves) throws Exception {
         // Map 1-10 to Nodes, Depth or Time
-        // Levels 0-2: handled by GameController (Random / Passive Random)
-        // Level 3: nodes 1 (very bad, looks at ~200 pos)
-        // Level 4: nodes 5
-        // Level 5: depth 1
+        // Levels 0-3: handled by GameController
+        // Level 4: nodes 200 (Stable minimum)
+        // Level 5: nodes 1000
         // Level 6: depth 2
         // Level 7: depth 4
         // Level 8: depth 10
         // Level 9: Time 1000ms
         // Level 10: Time 2000ms
-        if (difficultyLevel <= 3) {
-            return eng.goNodesWithMoves(searchMoves, 1, 5000).move();
-        } else if (difficultyLevel == 4) {
-            return eng.goNodesWithMoves(searchMoves, 5, 5000).move();
+        if (difficultyLevel <= 4) {
+            return eng.goNodesWithMoves(searchMoves, 200, 5000).move();
         } else if (difficultyLevel == 5) {
-            // For depth-based searches, we can also add support for searchmoves in
-            // UciClient if needed
-            // but for now let's just support it for the weakest levels.
-            return eng.goDepth(1, 5000).move();
+            return eng.goNodesWithMoves(searchMoves, 1000, 5000).move();
         } else if (difficultyLevel == 6) {
             return eng.goDepth(2, 5000).move();
         } else if (difficultyLevel == 7) {

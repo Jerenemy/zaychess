@@ -1076,12 +1076,12 @@ public class GameController implements NetworkTransport.Listener {
 		new Thread(() -> {
 			try {
 				GameState snap = gameState.snapshot();
-				if (engineDifficulty <= 2) {
+				if (engineDifficulty >= 2 && engineDifficulty <= 3) {
 					List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
 					if (!allMoves.isEmpty()) {
 						Move chosenMove;
-						if (engineDifficulty == 1) {
-							// Passive Random: Avoid captures if possible
+						if (engineDifficulty == 2) {
+							// Level 2: Passive Random: Avoid captures if possible
 							List<Move> nonCaptures = allMoves.stream()
 									.filter(m -> m.getMoveType() != com.jeremyzay.zaychess.model.move.MoveType.CAPTURE
 											&& m.getMoveType() != com.jeremyzay.zaychess.model.move.MoveType.EN_PASSANT)
@@ -1092,7 +1092,7 @@ public class GameController implements NetworkTransport.Listener {
 								chosenMove = allMoves.get(new java.util.Random().nextInt(allMoves.size()));
 							}
 						} else {
-							// Level 0: Pure random
+							// Level 3: Pure random
 							chosenMove = allMoves.get(new java.util.Random().nextInt(allMoves.size()));
 						}
 
@@ -1107,12 +1107,14 @@ public class GameController implements NetworkTransport.Listener {
 					}
 				}
 				String uci;
-				if (engineDifficulty == 2) {
-					// Smart Passive: Engine chooses BEST move that is not a capture
+				if (engineDifficulty == 0) {
+					// Level 0: Smart Passive: Engine chooses BEST move that is not a capture
 					List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
 					List<String> quietUcis = allMoves.stream()
 							.filter(m -> m.getMoveType() != MoveType.CAPTURE
-									&& m.getMoveType() != MoveType.EN_PASSANT)
+									&& m.getMoveType() != MoveType.EN_PASSANT
+									&& !(m.getMoveType() == MoveType.PROMOTION
+											&& snap.getPieceAt(m.getToPos()) != null))
 							.map(this::encodeUci)
 							.toList();
 
@@ -1122,9 +1124,25 @@ public class GameController implements NetworkTransport.Listener {
 					} else {
 						uci = engine.bestMove();
 					}
+				} else if (engineDifficulty == 1) {
+					// Level 1: Super Aggressive: Engine forces capture if available
+					List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
+					List<String> captureUcis = allMoves.stream()
+							.filter(m -> m.getMoveType() == MoveType.CAPTURE
+									|| m.getMoveType() == MoveType.EN_PASSANT
+									|| (m.getMoveType() == MoveType.PROMOTION && snap.getPieceAt(m.getToPos()) != null))
+							.map(this::encodeUci)
+							.toList();
+
+					engine.setPositionFEN(NotationFEN.toFEN(snap));
+					if (!captureUcis.isEmpty()) {
+						uci = engine.bestMove(captureUcis);
+					} else {
+						uci = engine.bestMove();
+					}
 				} else {
 					engine.setPositionFEN(NotationFEN.toFEN(snap));
-					uci = engine.bestMove(); // Standard difficulty logic
+					uci = engine.bestMove(); // Standard difficulty logic (Levels 4-10)
 				}
 
 				Move em = decodeUci(uci);

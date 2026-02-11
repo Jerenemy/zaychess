@@ -311,11 +311,13 @@ public class MainFrame extends JFrame {
                 java.util.function.IntConsumer updateLabel = (val) -> {
                     String text = "Level " + val;
                     if (val == 0)
-                        text = "0 (Random)";
+                        text = "0 (Smart Passive)";
                     if (val == 1)
-                        text = "1 (Passive Random)";
+                        text = "1 (Super Aggressive)";
                     if (val == 2)
-                        text = "2 (Smart Passive)";
+                        text = "2 (Passive Random)";
+                    if (val == 3)
+                        text = "3 (Pure Random)";
                     if (val == 5)
                         text = "5 (Medium)";
                     if (val == 10)

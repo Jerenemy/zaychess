@@ -114,7 +114,7 @@ public final class UciClient implements AutoCloseable {
     public void setPositionFEN(String fen) throws IOException, TimeoutException {
         this.startFEN = "fen " + fen;
         moveHistory.clear();
-        // Removed isReady sync here to reduce overhead; sync happens during 'go'
+        pendingBestMove = null; // Clear any stale moves when changing position
     }
 
     /**
@@ -141,8 +141,14 @@ public final class UciClient implements AutoCloseable {
         } catch (InterruptedException ignored) {
         }
         isReady(5000); // Sync before search
+        pendingBestMove = null; // Clear stale moves
         send("go movetime " + ms);
-        return waitBestMove(ms + timeoutBufferMs);
+        try {
+            return waitBestMove(ms + timeoutBufferMs);
+        } catch (TimeoutException e) {
+            stop();
+            throw e;
+        }
     }
 
     public BestMove goDepth(int depth, long timeoutMs) throws IOException, TimeoutException {
@@ -152,8 +158,14 @@ public final class UciClient implements AutoCloseable {
         } catch (InterruptedException ignored) {
         }
         isReady(5000); // Sync before search
+        pendingBestMove = null; // Clear stale moves
         send("go depth " + depth);
-        return waitBestMove(timeoutMs);
+        try {
+            return waitBestMove(timeoutMs);
+        } catch (TimeoutException e) {
+            stop();
+            throw e;
+        }
     }
 
     public BestMove goNodes(long nodes, long timeoutMs) throws IOException, TimeoutException {
@@ -168,12 +180,23 @@ public final class UciClient implements AutoCloseable {
         } catch (InterruptedException ignored) {
         }
         isReady(5000); // Sync before search
+        pendingBestMove = null; // Important: clear any stale responses before new search
         String cmd = "go nodes " + nodes;
         if (searchMoves != null && !searchMoves.isEmpty()) {
             cmd += " searchmoves " + String.join(" ", searchMoves);
         }
         send(cmd);
-        return waitBestMove(timeoutMs);
+        try {
+            return waitBestMove(timeoutMs);
+        } catch (TimeoutException e) {
+            stop(); // Halt engine if we time out
+            throw e;
+        }
+    }
+
+    public void stop() throws IOException {
+        send("stop");
+        pendingBestMove = null;
     }
 
     private void positionSync() throws IOException {

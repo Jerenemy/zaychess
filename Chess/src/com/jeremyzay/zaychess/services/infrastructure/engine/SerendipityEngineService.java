@@ -17,6 +17,7 @@ public final class SerendipityEngineService implements EngineService {
     private final String jarPath;
     private final boolean inProcess;
     private UciClient eng;
+    private int difficultyLevel = 5; // Default Level 5
 
     public SerendipityEngineService() {
         this.javaCmd = null;
@@ -63,6 +64,11 @@ public final class SerendipityEngineService implements EngineService {
     }
 
     @Override
+    public void setDifficulty(int level) {
+        this.difficultyLevel = Math.max(1, Math.min(10, level));
+    }
+
+    @Override
     public void setPositionFEN(String fen) throws Exception {
         if (fen == null || fen.isBlank())
             return;
@@ -77,6 +83,23 @@ public final class SerendipityEngineService implements EngineService {
     @Override
     public String bestMoveMs(int movetimeMs) throws Exception {
         return eng.goMovetime(movetimeMs, /* buffer */ 2000).move();
+    }
+
+    @Override
+    public String bestMove() throws Exception {
+        // Map 1-10 to Depth or Time
+        // Levels 1-8: Depth 2, 4, 6, 8, 10, 12, 14, 16
+        // Level 9: Time 1000ms
+        // Level 10: Time 2000ms
+        if (difficultyLevel <= 8) {
+            int depth = difficultyLevel * 2;
+            // Increase timeout to 30s to be safe under load
+            return eng.goDepth(depth, 30000).move();
+        } else if (difficultyLevel == 9) {
+            return bestMoveMs(1000);
+        } else {
+            return bestMoveMs(2000);
+        }
     }
 
     @Override

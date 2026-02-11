@@ -147,7 +147,12 @@ public class MainFrame extends JFrame {
                 controller.setEngine();
             }, () -> {
                 if (controller.isUsingEngine()) {
-                    showSideSelectionOverlay(side -> launchEngineGame(side));
+                    showSideSelectionOverlay(side -> {
+                        showDifficultySelectionOverlay(difficulty -> {
+                            controller.setEngineDifficulty(difficulty);
+                            launchEngineGame(side);
+                        });
+                    });
                 }
             });
         });
@@ -272,6 +277,55 @@ public class MainFrame extends JFrame {
         }.showOverlay();
     }
 
+    private void showDifficultySelectionOverlay(java.util.function.Consumer<Integer> onSelect) {
+        new OverlayPanel() {
+            @Override
+            protected JPanel createContent() {
+                JPanel content = new JPanel();
+                content.setOpaque(false);
+                content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+
+                JLabel title = createTitle("Choose Difficulty");
+                title.setAlignmentX(Component.CENTER_ALIGNMENT);
+                content.add(title);
+
+                JPanel buttonPanel = new JPanel(new GridLayout(2, 5, 10, 10));
+                buttonPanel.setOpaque(false);
+
+                for (int i = 1; i <= 10; i++) {
+                    final int level = i;
+                    String label = String.valueOf(i);
+                    if (i == 1)
+                        label = "1 (Easy)";
+                    if (i == 10)
+                        label = "10 (Pro)";
+
+                    JButton btn = createOverlayButton(label);
+                    btn.setPreferredSize(new Dimension(100, 50));
+                    btn.addActionListener(e -> {
+                        hideOverlay();
+                        onSelect.accept(level);
+                    });
+                    buttonPanel.add(btn);
+                }
+
+                content.add(buttonPanel);
+                return content;
+            }
+
+            @Override
+            protected JComponent createFooter() {
+                JButton cancelBtn = createSecondaryButton("Cancel");
+                cancelBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+                cancelBtn.addActionListener(e -> {
+                    hideOverlay();
+                    showMenu();
+                });
+                return cancelBtn;
+            }
+        }.showOverlay();
+    }
+
     private void launchEngineGame(PlayerColor humanSide) {
         GameLauncher.launch(gameState, controller);
         controller.startEngineGame(humanSide);
@@ -331,7 +385,12 @@ public class MainFrame extends JFrame {
                             controller.setEngine();
                         }, () -> {
                             if (controller.isUsingEngine()) {
-                                showSideSelectionOverlay(side -> finishLoadVsAI(selectedFile, side));
+                                showSideSelectionOverlay(side -> {
+                                    showDifficultySelectionOverlay(difficulty -> {
+                                        controller.setEngineDifficulty(difficulty);
+                                        finishLoadVsAI(selectedFile, side);
+                                    });
+                                });
                             }
                         });
                     });

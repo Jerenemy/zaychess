@@ -72,6 +72,7 @@ public class GameController implements NetworkTransport.Listener {
 	// ──────────────────────────────────────────────────────────────────────────────
 
 	private EngineService engine = null;
+	private int engineDifficulty = 5; // Default Level 5
 
 	/**
 	 * Create a controller with in-memory move history and no network.
@@ -154,6 +155,7 @@ public class GameController implements NetworkTransport.Listener {
 		this.engine = new SerendipityEngineService();
 		try {
 			this.engine.start();
+			this.engine.setDifficulty(engineDifficulty);
 		} catch (Throwable e) {
 			if (e instanceof VirtualMachineError)
 				throw (VirtualMachineError) e;
@@ -168,6 +170,17 @@ public class GameController implements NetworkTransport.Listener {
 						"Engine Error",
 						JOptionPane.ERROR_MESSAGE);
 		}
+	}
+
+	public void setEngineDifficulty(int level) {
+		this.engineDifficulty = level;
+		if (this.engine != null) {
+			this.engine.setDifficulty(level);
+		}
+	}
+
+	public int getEngineDifficulty() {
+		return engineDifficulty;
 	}
 
 	/**
@@ -1064,7 +1077,7 @@ public class GameController implements NetworkTransport.Listener {
 			try {
 				GameState snap = gameState.snapshot();
 				engine.setPositionFEN(NotationFEN.toFEN(snap));
-				String uci = engine.bestMoveMs(1500); // ~1.5s thinking
+				String uci = engine.bestMove(); // Use difficulty-based move
 				Move em = decodeUci(uci);
 				if (em != null) {
 					SwingUtilities.invokeLater(() -> {

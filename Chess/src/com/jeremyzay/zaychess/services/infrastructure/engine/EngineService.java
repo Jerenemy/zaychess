@@ -1,11 +1,22 @@
 package com.jeremyzay.zaychess.services.infrastructure.engine;
 
 public interface EngineService extends AutoCloseable {
-    void start() throws Exception;              // launch engine
-    void newGame() throws Exception;            // reset
+    void start() throws Exception; // launch engine
+
+    void newGame() throws Exception; // reset
+
     void setOption(String name, String value) throws Exception;
+
+    void setDifficulty(int level); // 1-10
+
     void setPositionFEN(String fen) throws Exception; // or default startpos
-    void pushUserMove(String uciMove);          // e.g., "e2e4"
+
+    void pushUserMove(String uciMove); // e.g., "e2e4"
+
     String bestMoveMs(int movetimeMs) throws Exception; // returns "e7e5" etc.
-    @Override void close();                     // shutdown
+
+    String bestMove() throws Exception; // returns "e7e5" based on difficulty
+
+    @Override
+    void close(); // shutdown
 }

@@ -3,29 +3,48 @@
 ## App Information
 **App Name:** Zaychess
 **Version:** 1.1.2
+**Subtitle:** Chess, Refined.
+
+## Promotional Text
+A tactile, beautifully minimalist chess experience for macOS. No accounts. No clutter. Just the game.
 
 ## Description
-Zaychess is a lightweight chess app for macOS with a strong local engine. It runs entirely on your Mac—no account or internet required.
+**Zaychess: A Love Letter to the Sixty-Four Squares.**
 
-Features
-• Play vs computer as black or white
-• Legal-move highlights, check/checkmate detection, undo/redo
-• Save & load games (PGN), import FEN/PGN
-• Clean UI with light/dark boards
-• Online Multiplayer: Automatically match with other players via the central relay server.
-• Local PvP: Play hot-seat chess on a single computer.
-• Sandboxed for privacy; works offline (for local/AI games)
+Forge your own path in the game of kings with Zaychess—a macOS-native chess application designed for those who value aesthetics, focus, and the tactile joy of movement. 
 
-Why Zaychess?
-Simple, fast, and focused. Ideal for quick games against the AI, practicing tactics, or challenging opponents online with zero setup.
+Escape the cluttered, data-heavy platforms of the past. Zaychess is built for the "Coffee Shop Player"—the design-conscious enthusiast who wants a premium, zen-like environment to play, learn, and relax.
+
+### Why Zaychess?
+
+**• Tactile & Playful Aesthetics**
+Experience chess through a handcrafted visual language of bold geometries and a soothing Teal/Blue palette. Our interactive main menu isn't just a list of buttons—it’s a digital playground with physics-based pieces you can toss, drag, and flick.
+
+**• The Serendipity Engine**
+Challenge "Serendipity," a custom-built engine designed to play with human-like character. It doesn't just offer cold calculation; it offers a game that feels alive, winnable, and endlessly engaging.
+
+**• Offline & Privacy-First**
+Zaychess runs entirely on your Mac. No sign-ups, no tracking, and no internet required for local or AI play. Your data stays where it belongs: with you.
+
+**• Seamless Social Play**
+ prioritization of Local PvP ("Hot-Seat" mode) makes Zaychess the perfect companion for a shared afternoon at a cafe. Need an opponent? Our streamlined online matchmaking pairs you with players globally with zero setup.
+
+### Features At A Glance
+• **Pure Gameplay**: Smooth drag-and-drop physics with high-fidelity visual feedback.
+• **Smart Assistance**: Legal-move highlights, check detection, and robust undo/redo.
+• **Game Archiving**: Save and load games using standardized formats (PGN/FEN).
+• **Modern Native UI**: A sleek, squircle-focused design that feels right at home on your Mac.
+• **Online Matchmaking**: Jump into the action instantly via our dedicated relay server.
+
+---
 
 ## What's New in Version 1.1.2
-• Completely revamped and modernized Main Menu: Enjoy a sleek, new design that sets the stage for your games.
-• Real Multiplayer Mode: Challenge active players online with our new, seamless matchmaking system.
-• Load Game vs AI: Resume any saved game and continue playing against the computer engine.
+• **The Design Evolution**: A completely reimagined Main Menu featuring "Toy" physics and a refined Retro-Modern aesthetic.
+• **Seamless Matchmaking**: A new, one-click online multiplayer system. No IPs, no hassle—just play.
+• **Resume the Challenge**: Now you can load any saved game directly into a match against the Serendipity AI.
 
 ## Keywords
-chess, offline, engine, local, game, strategy, tactics, pgn, fen, macos, native
+chess, minimalist, zen, design, cozy, macos, native, strategy, local pvp, board game, premium, engine
 
 ## Notes for App Review
 The previous Local/LAN mode has been replaced by a streamlined Online Matchmaking system using a relay server.

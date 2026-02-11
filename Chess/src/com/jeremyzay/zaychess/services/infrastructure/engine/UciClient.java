@@ -105,9 +105,10 @@ public final class UciClient implements AutoCloseable {
     }
 
     /** If you maintain your own board, set a custom FEN instead of startpos. */
-    public void setPositionFEN(String fen) throws IOException {
+    public void setPositionFEN(String fen) throws IOException, TimeoutException {
         this.startFEN = "fen " + fen;
         moveHistory.clear();
+        isReady(2000); // Sync after FEN change
     }
 
     /**
@@ -135,6 +136,7 @@ public final class UciClient implements AutoCloseable {
 
     public BestMove goDepth(int depth, long timeoutMs) throws IOException, TimeoutException {
         positionSync();
+        isReady(2000); // Sync before search
         send("go depth " + depth);
         return waitBestMove(timeoutMs);
     }

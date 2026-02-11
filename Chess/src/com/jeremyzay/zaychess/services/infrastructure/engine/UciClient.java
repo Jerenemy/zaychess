@@ -141,6 +141,7 @@ public final class UciClient implements AutoCloseable {
         } catch (InterruptedException ignored) {
         }
         isReady(5000); // Sync before search
+        drainLines();
         pendingBestMove = null; // Clear stale moves
         send("go movetime " + ms);
         try {
@@ -158,6 +159,7 @@ public final class UciClient implements AutoCloseable {
         } catch (InterruptedException ignored) {
         }
         isReady(5000); // Sync before search
+        drainLines();
         pendingBestMove = null; // Clear stale moves
         send("go depth " + depth);
         try {
@@ -180,6 +182,7 @@ public final class UciClient implements AutoCloseable {
         } catch (InterruptedException ignored) {
         }
         isReady(5000); // Sync before search
+        drainLines();
         pendingBestMove = null; // Important: clear any stale responses before new search
         String cmd = "go nodes " + nodes;
         if (searchMoves != null && !searchMoves.isEmpty()) {
@@ -269,11 +272,12 @@ public final class UciClient implements AutoCloseable {
             }
         }
         if (!alive) {
-            throw new TimeoutException("Engine stopped unexpectedly"
+            throw new TimeoutException("Engine stopped unexpectedly while waiting for bestmove"
                     + formatRecentOutput()
                     + formatClientState());
         }
-        throw new TimeoutException("bestmove not received in time"
+        throw new TimeoutException("bestmove not received within " + timeoutMs + "ms. "
+                + "Engine might be hung or ignoring commands."
                 + formatRecentOutput()
                 + formatClientState());
     }

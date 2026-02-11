@@ -151,6 +151,12 @@ public class GameController implements NetworkTransport.Listener {
 		}
 	}
 
+	private synchronized void restartEngine() {
+		System.err.println("Restarting engine due to failure...");
+		stopEngine();
+		setEngine();
+	}
+
 	public void setEngine() {
 		this.engine = new SerendipityEngineService();
 		try {
@@ -1106,44 +1112,115 @@ public class GameController implements NetworkTransport.Listener {
 						return;
 					}
 				}
-				String uci;
-				if (engineDifficulty == 0) {
-					// Level 0: Smart Passive: Engine chooses BEST move that is not a capture
-					List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
-					List<String> quietUcis = allMoves.stream()
-							.filter(m -> m.getMoveType() != MoveType.CAPTURE
-									&& m.getMoveType() != MoveType.EN_PASSANT
-									&& !(m.getMoveType() == MoveType.PROMOTION
-											&& snap.getPieceAt(m.getToPos()) != null))
-							.map(this::encodeUci)
-							.toList();
+				String uci = null;
+				try {
+					if (engineDifficulty == 0) {
+						// Level 0: Smart Passive: Engine chooses BEST move, but we enforce quiet moves
+						// only
+						List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
+						List<String> quietUcis = allMoves.stream()
+								.filter(m -> m.getMoveType() != MoveType.CAPTURE
+										&& m.getMoveType() != MoveType.EN_PASSANT
+										&& !(m.getMoveType() == MoveType.PROMOTION
+												&& snap.getPieceAt(m.getToPos()) != null))
+								.map(this::encodeUci)
+								.toList();
 
-					engine.setPositionFEN(NotationFEN.toFEN(snap));
-					if (!quietUcis.isEmpty()) {
-						uci = engine.bestMove(quietUcis);
-					} else {
+						engine.newGame(); // Clear state to prevent recurrent hangs
+						engine.setPositionFEN(NotationFEN.toFEN(snap));
+						// Standard search (no searchmoves to avoid engine bugs)
 						uci = engine.bestMove();
-					}
-				} else if (engineDifficulty == 1) {
-					// Level 1: Super Aggressive: Engine forces capture if available
-					List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
-					List<String> captureUcis = allMoves.stream()
-							.filter(m -> m.getMoveType() == MoveType.CAPTURE
-									|| m.getMoveType() == MoveType.EN_PASSANT
-									|| (m.getMoveType() == MoveType.PROMOTION && snap.getPieceAt(m.getToPos()) != null))
-							.map(this::encodeUci)
-							.toList();
 
-					engine.setPositionFEN(NotationFEN.toFEN(snap));
-					if (!captureUcis.isEmpty()) {
-						uci = engine.bestMove(captureUcis);
-					} else {
+						if (!quietUcis.isEmpty()) {
+							// If engine picks a capture, override it with a random quiet move
+							if (!quietUcis.contains(uci)) {
+								System.out
+										.println("Engine picked non-passive move " + uci + ", forcing random passive.");
+								uci = quietUcis.get(new java.util.Random().nextInt(quietUcis.size()));
+							}
+						}
+						// If no quiet moves exist, uci remains the engine's choice (forced capture)
+					} else if (engineDifficulty == 1) {
+						// Level 1: Super Aggressive: Engine forces capture if available
+						List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
+						List<String> captureUcis = allMoves.stream()
+								.filter(m -> m.getMoveType() == MoveType.CAPTURE
+										|| m.getMoveType() == MoveType.EN_PASSANT
+										|| (m.getMoveType() == MoveType.PROMOTION
+												&& snap.getPieceAt(m.getToPos()) != null))
+								.map(this::encodeUci)
+								.toList();
+
+						engine.newGame(); // Clear state to prevent recurrent hangs
+						engine.setPositionFEN(NotationFEN.toFEN(snap));
+						// Standard search (no searchmoves to avoid engine bugs)
 						uci = engine.bestMove();
+
+						if (!captureUcis.isEmpty()) {
+							// If engine picks a non-capture, override it with a random capture
+							if (!captureUcis.contains(uci)) {
+								System.out.println(
+										"Engine picked non-aggressive move " + uci + ", forcing random capture.");
+								uci = captureUcis.get(new java.util.Random().nextInt(captureUcis.size()));
+							}
+						}
+						// If no captures exist, uci remains the engine's choice (forced quiet)
+					} else {
+						engine.setPositionFEN(NotationFEN.toFEN(snap));
+						uci = engine.bestMove(); // Standard difficulty logic (Levels 4-10)
 					}
-				} else {
-					engine.setPositionFEN(NotationFEN.toFEN(snap));
-					uci = engine.bestMove(); // Standard difficulty logic (Levels 4-10)
+				} catch (Exception e) {
+					System.err.println("Engine failed or timed out: " + e.getMessage());
+					e.printStackTrace();
+
+					// Restart the engine so the next move works
+					restartEngine();
+
+					// Smart Fallback
+					List<Move> fallbackMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
+					if (fallbackMoves.isEmpty()) {
+						return;
+					}
+
+					uci = null;
+
+					if (engineDifficulty == 1) { // Aggressive
+						// Try random capture
+						List<Move> captures = fallbackMoves.stream()
+								.filter(m -> m.getMoveType() == MoveType.CAPTURE
+										|| m.getMoveType() == MoveType.EN_PASSANT
+										|| (m.getMoveType() == MoveType.PROMOTION
+												&& snap.getPieceAt(m.getToPos()) != null))
+								.toList();
+
+						if (!captures.isEmpty()) {
+							uci = encodeUci(captures.get(new java.util.Random().nextInt(captures.size())));
+							System.out.println("Fallback: picked random capture: " + uci);
+						}
+					} else if (engineDifficulty == 0) { // Passive
+						// Try random quiet
+						List<Move> quiet = fallbackMoves.stream()
+								.filter(m -> m.getMoveType() != MoveType.CAPTURE
+										&& m.getMoveType() != MoveType.EN_PASSANT
+										&& !(m.getMoveType() == MoveType.PROMOTION
+												&& snap.getPieceAt(m.getToPos()) != null))
+								.toList();
+
+						if (!quiet.isEmpty()) {
+							uci = encodeUci(quiet.get(new java.util.Random().nextInt(quiet.size())));
+							System.out.println("Fallback: picked random quiet: " + uci);
+						}
+					}
+
+					if (uci == null) {
+						// Random any move
+						uci = encodeUci(fallbackMoves.get(new java.util.Random().nextInt(fallbackMoves.size())));
+						System.out.println("Fallback: picked random move: " + uci);
+					}
 				}
+
+				if (uci == null)
+					return;
 
 				Move em = decodeUci(uci);
 				if (em != null) {

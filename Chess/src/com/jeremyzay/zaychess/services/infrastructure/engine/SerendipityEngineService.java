@@ -66,6 +66,20 @@ public final class SerendipityEngineService implements EngineService {
     @Override
     public void setDifficulty(int level) {
         this.difficultyLevel = Math.max(1, Math.min(10, level));
+        if (eng != null) {
+            // Enforce Threads=1 for ALL levels due to engine instability with
+            // multi-threading
+            // The engine was observed to hang with Threads=8 even at low depths.
+            safeSet("Threads", "1");
+
+            if (this.difficultyLevel <= 5) {
+                // Low resource levels (Hash 16MB)
+                safeSet("Hash", "16");
+            } else {
+                // High resource levels (Hash 64MB - safer than 256MB)
+                safeSet("Hash", "64");
+            }
+        }
     }
 
     @Override
@@ -102,9 +116,11 @@ public final class SerendipityEngineService implements EngineService {
         // Level 9: Time 1000ms
         // Level 10: Time 2000ms
         if (difficultyLevel <= 4) {
-            return eng.goNodesWithMoves(searchMoves, 200, 5000).move();
+            // Use depth 1 for Level 4 (originally nodes 200, which is very shallow)
+            // Depth 1 is safer and likely stronger than 200 nodes.
+            return eng.goDepth(1, 5000).move();
         } else if (difficultyLevel == 5) {
-            return eng.goNodesWithMoves(searchMoves, 1000, 5000).move();
+            return eng.goDepth(2, 5000).move();
         } else if (difficultyLevel == 6) {
             return eng.goDepth(2, 5000).move();
         } else if (difficultyLevel == 7) {

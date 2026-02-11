@@ -41,7 +41,9 @@ public class SpecialMoveHandler {
         this.blackQueensideRookMoved = false;
     }
 
-    /** @return the current en passant target square, or null if none is available */
+    /**
+     * @return the current en passant target square, or null if none is available
+     */
     public Position getEnPassantTarget() {
         return enPassantTarget;
     }
@@ -54,7 +56,8 @@ public class SpecialMoveHandler {
      * @param pseudoLegalMoves list to append moves to
      */
     public void addEnPassantMoves(GameState s, Position pos, List<Move> pseudoLegalMoves) {
-        if (enPassantTarget == null) return;
+        if (enPassantTarget == null)
+            return;
 
         Move epMove = new Move(pos, enPassantTarget, MoveType.EN_PASSANT);
         if (isEnPassantValid(s, epMove)) {
@@ -70,23 +73,31 @@ public class SpecialMoveHandler {
      * @return true if it represents a valid en passant capture
      */
     public boolean isEnPassantValid(GameState s, Move m) {
-        if (enPassantTarget == null) return false;
+        if (enPassantTarget == null)
+            return false;
 
         Position from = m.getFromPos();
         Position to = m.getToPos();
         Piece mover = s.getPieceAt(from);
-        if (!(mover instanceof Pawn)) return false;
-        if (!to.equals(enPassantTarget)) return false;
+        if (!(mover instanceof Pawn))
+            return false;
+        if (!to.equals(enPassantTarget))
+            return false;
 
         int dir = getDir(mover.getColor());
-        if (to.getRank() - from.getRank() != dir) return false;
-        if (Math.abs(to.getFile() - from.getFile()) != 1) return false;
-        if (s.getPieceAt(to) != null) return false;
+        if (to.getRank() - from.getRank() != dir)
+            return false;
+        if (Math.abs(to.getFile() - from.getFile()) != 1)
+            return false;
+        if (s.getPieceAt(to) != null)
+            return false;
 
         Position capturedPos = new Position(from.getRank(), to.getFile());
         Piece captured = s.getPieceAt(capturedPos);
-        if (!(captured instanceof Pawn)) return false;
-        if (captured.getColor() == mover.getColor()) return false;
+        if (!(captured instanceof Pawn))
+            return false;
+        if (captured.getColor() == mover.getColor())
+            return false;
 
         return true;
     }
@@ -108,7 +119,8 @@ public class SpecialMoveHandler {
         Position to = m.getToPos();
 
         Piece mover = s.getPieceAt(from);
-        if (!(mover instanceof Pawn)) return;
+        if (!(mover instanceof Pawn))
+            return;
 
         int fromRank = from.getRank();
         int toRank = to.getRank();
@@ -137,13 +149,16 @@ public class SpecialMoveHandler {
      */
     public void addCastlingMoves(GameState s, Position from, List<Move> pseudoLegalMoves) {
         Piece p = s.getPieceAt(from);
-        if (!(p instanceof King)) return;
+        if (!(p instanceof King))
+            return;
 
-        if (from.getFile() != 4) return;
-        if (from.getRank() != kingRookStartRank(p.getColor())) return;
+        if (from.getFile() != 4)
+            return;
+        if (from.getRank() != kingRookStartRank(p.getColor()))
+            return;
 
         Move queenside = new Move(from, new Position(from.getRank(), 2), MoveType.CASTLE);
-        Move kingside  = new Move(from, new Position(from.getRank(), 6), MoveType.CASTLE);
+        Move kingside = new Move(from, new Position(from.getRank(), 6), MoveType.CASTLE);
 
         for (Move m : new Move[] { queenside, kingside }) {
             if (isCastlingValid(s, m)) {
@@ -164,47 +179,63 @@ public class SpecialMoveHandler {
         Position to = m.getToPos();
 
         Piece mover = s.getPieceAt(from);
-        if (!(mover instanceof King)) return false;
+        if (!(mover instanceof King))
+            return false;
 
         PlayerColor us = mover.getColor();
         PlayerColor them = us.getOpposite();
 
-        if (from.getRank() != kingRookStartRank(us)) return false;
-        if (from.getFile() != 4) return false;
+        if (from.getRank() != kingRookStartRank(us))
+            return false;
+        if (from.getFile() != 4)
+            return false;
 
         int toFile = to.getFile();
-        if (to.getRank() != from.getRank()) return false;
+        if (to.getRank() != from.getRank())
+            return false;
         boolean kingSide = (toFile == 6);
         boolean queenSide = (toFile == 2);
-        if (!(kingSide || queenSide)) return false;
+        if (!(kingSide || queenSide))
+            return false;
 
-        if (s.getPieceAt(to) != null) return false;
+        if (s.getPieceAt(to) != null)
+            return false;
 
         if (us == PlayerColor.WHITE) {
-            if (whiteKingMoved) return false;
-            if (kingSide && whiteKingsideRookMoved) return false;
-            if (queenSide && whiteQueensideRookMoved) return false;
+            if (whiteKingMoved)
+                return false;
+            if (kingSide && whiteKingsideRookMoved)
+                return false;
+            if (queenSide && whiteQueensideRookMoved)
+                return false;
         } else {
-            if (blackKingMoved) return false;
-            if (kingSide && blackKingsideRookMoved) return false;
-            if (queenSide && blackQueensideRookMoved) return false;
+            if (blackKingMoved)
+                return false;
+            if (kingSide && blackKingsideRookMoved)
+                return false;
+            if (queenSide && blackQueensideRookMoved)
+                return false;
         }
 
         int rookFile = kingSide ? 7 : 0;
         Position rookPos = new Position(from.getRank(), rookFile);
         Piece rook = s.getPieceAt(rookPos);
-        if (!(rook instanceof Rook) || rook.getColor() != us) return false;
+        if (!(rook instanceof Rook) || rook.getColor() != us)
+            return false;
 
         int stepKR = (rookFile > from.getFile()) ? 1 : -1;
         for (int f = from.getFile() + stepKR; f != rookFile; f += stepKR) {
-            if (s.getPieceAt(new Position(from.getRank(), f)) != null) return false;
+            if (s.getPieceAt(new Position(from.getRank(), f)) != null)
+                return false;
         }
 
-        if (s.getKingOfColor(us).isInCheck(s)) return false;
+        if (s.getKingOfColor(us).isInCheck(s))
+            return false;
         int stepK = (toFile > from.getFile()) ? 1 : -1;
         for (int f = from.getFile() + stepK; f != toFile + stepK; f += stepK) {
             Position sq = new Position(from.getRank(), f);
-            if (isSquareAttacked(s, sq, them)) return false;
+            if (isSquareAttacked(s, sq, them))
+                return false;
         }
 
         return true;
@@ -223,21 +254,66 @@ public class SpecialMoveHandler {
     /** Prints internal flags (debug helper). */
     public void printHasMovedFlags() {
         System.out.println(
-            "whiteKingMoved=" + whiteKingMoved +
-            " blackKingMoved=" + blackKingMoved +
-            " whiteKingsideRookMoved=" + whiteKingsideRookMoved +
-            " whiteQueensideRookMoved=" + whiteQueensideRookMoved +
-            " blackKingsideRookMoved=" + blackKingsideRookMoved +
-            " blackQueensideRookMoved=" + blackQueensideRookMoved
-        );
+                "whiteKingMoved=" + whiteKingMoved +
+                        " blackKingMoved=" + blackKingMoved +
+                        " whiteKingsideRookMoved=" + whiteKingsideRookMoved +
+                        " whiteQueensideRookMoved=" + whiteQueensideRookMoved +
+                        " blackKingsideRookMoved=" + blackKingsideRookMoved +
+                        " blackQueensideRookMoved=" + blackQueensideRookMoved);
     }
 
-    public boolean hasWhiteKingMoved() { return whiteKingMoved; }
-    public boolean hasBlackKingMoved() { return blackKingMoved; }
-    public boolean hasWhiteKingsideRookMoved() { return whiteKingsideRookMoved; }
-    public boolean hasWhiteQueensideRookMoved() { return whiteQueensideRookMoved; }
-    public boolean hasBlackKingsideRookMoved() { return blackKingsideRookMoved; }
-    public boolean hasBlackQueensideRookMoved() { return blackQueensideRookMoved; }
+    public boolean hasWhiteKingMoved() {
+        return whiteKingMoved;
+    }
+
+    public boolean hasBlackKingMoved() {
+        return blackKingMoved;
+    }
+
+    public boolean hasWhiteKingsideRookMoved() {
+        return whiteKingsideRookMoved;
+    }
+
+    public boolean hasWhiteQueensideRookMoved() {
+        return whiteQueensideRookMoved;
+    }
+
+    public boolean hasBlackKingsideRookMoved() {
+        return blackKingsideRookMoved;
+    }
+
+    public boolean hasBlackQueensideRookMoved() {
+        return blackQueensideRookMoved;
+    }
+
+    // --- Setters for FEN parsing ---
+    public void setWhiteKingMoved(boolean v) {
+        whiteKingMoved = v;
+    }
+
+    public void setBlackKingMoved(boolean v) {
+        blackKingMoved = v;
+    }
+
+    public void setWhiteKingsideRookMoved(boolean v) {
+        whiteKingsideRookMoved = v;
+    }
+
+    public void setWhiteQueensideRookMoved(boolean v) {
+        whiteQueensideRookMoved = v;
+    }
+
+    public void setBlackKingsideRookMoved(boolean v) {
+        blackKingsideRookMoved = v;
+    }
+
+    public void setBlackQueensideRookMoved(boolean v) {
+        blackQueensideRookMoved = v;
+    }
+
+    public void setEnPassantTarget(Position target) {
+        enPassantTarget = target;
+    }
 
     /**
      * Updates has-moved flags after a move is applied.
@@ -253,15 +329,23 @@ public class SpecialMoveHandler {
         boolean isWhite = (us == PlayerColor.WHITE);
 
         if (mover instanceof King) {
-            if (isWhite) whiteKingMoved = true; else blackKingMoved = true;
+            if (isWhite)
+                whiteKingMoved = true;
+            else
+                blackKingMoved = true;
         }
 
         if (mover instanceof Rook && from.getRank() == kingRookStartRank(mover.getColor())) {
             if (from.getFile() == 0) {
-                if (isWhite) whiteQueensideRookMoved = true; else blackQueensideRookMoved = true;
-            }
-            else if (from.getFile() == 7) {
-                if (isWhite) whiteKingsideRookMoved = true; else blackKingsideRookMoved = true;
+                if (isWhite)
+                    whiteQueensideRookMoved = true;
+                else
+                    blackQueensideRookMoved = true;
+            } else if (from.getFile() == 7) {
+                if (isWhite)
+                    whiteKingsideRookMoved = true;
+                else
+                    blackKingsideRookMoved = true;
             }
         }
     }
@@ -271,8 +355,7 @@ public class SpecialMoveHandler {
         int r = m.getFromPos().getRank();
         if (m.getToPos().getFile() == 6) {
             movePieceFromTo(state, r, 7, r, 5);
-        }
-        else if (m.getToPos().getFile() == 2) {
+        } else if (m.getToPos().getFile() == 2) {
             movePieceFromTo(state, r, 0, r, 3);
         }
     }
@@ -314,7 +397,7 @@ public class SpecialMoveHandler {
      */
     public void copyFrom(SpecialMoveHandler other) {
         this.enPassantTarget = (other.enPassantTarget == null ? null
-            : new Position(other.enPassantTarget));
+                : new Position(other.enPassantTarget));
         this.whiteKingMoved = other.whiteKingMoved;
         this.blackKingMoved = other.blackKingMoved;
         this.whiteKingsideRookMoved = other.whiteKingsideRookMoved;

@@ -1076,7 +1076,7 @@ public class GameController implements NetworkTransport.Listener {
 		new Thread(() -> {
 			try {
 				GameState snap = gameState.snapshot();
-				if (engineDifficulty == 1) {
+				if (engineDifficulty == 0) {
 					List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
 					if (!allMoves.isEmpty()) {
 						Move randomMove = allMoves.get(new java.util.Random().nextInt(allMoves.size()));

@@ -178,9 +178,10 @@ public final class UciClient implements AutoCloseable {
         send(cmd);
     }
 
-    private BestMove waitBestMove(long timeoutMs) throws TimeoutException {
+    private volatile String pendingBestMove = null;
+
+    private void waitForToken(String token, long timeoutMs) throws TimeoutException {
         long end = System.currentTimeMillis() + timeoutMs;
-        String found = null, ponder = null;
         while (System.currentTimeMillis() < end && alive) {
             String line;
             try {
@@ -191,14 +192,48 @@ public final class UciClient implements AutoCloseable {
             if (line == null)
                 continue;
 
-            // Parse an optional "info" stream here if you want (scores, pv, depth).
+            // If we're waiting for something else (like readyok) but see a bestmove,
+            // don't discard it! Store it for the next waitBestMove call.
             if (line.startsWith("bestmove ")) {
-                String[] tok = line.split("\\s+");
-                if (tok.length >= 2)
-                    found = tok[1];
-                if (tok.length >= 4 && "ponder".equals(tok[2]))
-                    ponder = tok[3];
-                break;
+                pendingBestMove = line;
+                if ("bestmove".equals(token))
+                    return;
+            }
+
+            if (line.contains(token))
+                return;
+        }
+        if (!alive) {
+            throw new TimeoutException("Engine stopped while waiting for: " + token
+                    + formatRecentOutput()
+                    + formatClientState());
+        }
+        throw new TimeoutException("Timeout waiting for: " + token
+                + formatRecentOutput()
+                + formatClientState());
+    }
+
+    private BestMove waitBestMove(long timeoutMs) throws TimeoutException {
+        // Did we already see it during a prior isReady?
+        if (pendingBestMove != null) {
+            String line = pendingBestMove;
+            pendingBestMove = null;
+            return parseBestMove(line);
+        }
+
+        long end = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < end && alive) {
+            String line;
+            try {
+                line = lines.poll(20, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                continue;
+            }
+            if (line == null)
+                continue;
+
+            if (line.startsWith("bestmove ")) {
+                return parseBestMove(line);
             }
         }
         if (!alive) {
@@ -206,11 +241,18 @@ public final class UciClient implements AutoCloseable {
                     + formatRecentOutput()
                     + formatClientState());
         }
-        if (found == null) {
-            throw new TimeoutException("bestmove not received in time"
-                    + formatRecentOutput()
-                    + formatClientState());
-        }
+        throw new TimeoutException("bestmove not received in time"
+                + formatRecentOutput()
+                + formatClientState());
+    }
+
+    private BestMove parseBestMove(String line) {
+        String found = null, ponder = null;
+        String[] tok = line.split("\\s+");
+        if (tok.length >= 2)
+            found = tok[1];
+        if (tok.length >= 4 && "ponder".equals(tok[2]))
+            ponder = tok[3];
         return new BestMove(found, ponder);
     }
 
@@ -227,30 +269,6 @@ public final class UciClient implements AutoCloseable {
         } catch (IOException e) {
             throw enrichIo("UCI send failed", e);
         }
-    }
-
-    private void waitForToken(String token, long timeoutMs) throws TimeoutException {
-        long end = System.currentTimeMillis() + timeoutMs;
-        while (System.currentTimeMillis() < end && alive) {
-            String line;
-            try {
-                line = lines.poll(20, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-                continue;
-            }
-            if (line == null)
-                continue;
-            if (line.contains(token))
-                return;
-        }
-        if (!alive) {
-            throw new TimeoutException("Engine stopped while waiting for: " + token
-                    + formatRecentOutput()
-                    + formatClientState());
-        }
-        throw new TimeoutException("Timeout waiting for: " + token
-                + formatRecentOutput()
-                + formatClientState());
     }
 
     @Override

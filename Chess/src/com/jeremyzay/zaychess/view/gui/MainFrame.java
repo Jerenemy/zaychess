@@ -289,27 +289,52 @@ public class MainFrame extends JFrame {
                 title.setAlignmentX(Component.CENTER_ALIGNMENT);
                 content.add(title);
 
-                JPanel buttonPanel = new JPanel(new GridLayout(2, 5, 10, 10));
-                buttonPanel.setOpaque(false);
+                // Difficulty Status Label
+                JLabel diffLabel = new JLabel("Level 5", SwingConstants.CENTER);
+                diffLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+                diffLabel.setForeground(Color.DARK_GRAY);
+                diffLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+                content.add(diffLabel);
+                content.add(Box.createVerticalStrut(10));
 
-                for (int i = 1; i <= 10; i++) {
-                    final int level = i;
-                    String label = String.valueOf(i);
-                    if (i == 1)
-                        label = "1 (Random)";
-                    if (i == 10)
-                        label = "10 (Pro)";
+                // Slider configuration
+                JSlider slider = new JSlider(0, 10, 5);
+                slider.setMajorTickSpacing(1);
+                slider.setPaintTicks(true);
+                slider.setSnapToTicks(true);
+                slider.setOpaque(false);
+                slider.setPreferredSize(new Dimension(300, 50));
+                slider.setMaximumSize(new Dimension(300, 50));
+                slider.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-                    JButton btn = createOverlayButton(label);
-                    btn.setPreferredSize(new Dimension(100, 50));
-                    btn.addActionListener(e -> {
-                        hideOverlay();
-                        onSelect.accept(level);
-                    });
-                    buttonPanel.add(btn);
-                }
+                // Helper to update the status text based on slider value
+                java.util.function.IntConsumer updateLabel = (val) -> {
+                    String text = "Level " + val;
+                    if (val == 0)
+                        text = "0 (Random)";
+                    if (val == 5)
+                        text = "5 (Medium)";
+                    if (val == 10)
+                        text = "10 (Pro)";
+                    diffLabel.setText(text);
+                };
 
-                content.add(buttonPanel);
+                updateLabel.accept(5); // Initial label
+                slider.addChangeListener(e -> updateLabel.accept(slider.getValue()));
+                content.add(slider);
+                content.add(Box.createVerticalStrut(20));
+
+                // Start Game confirmation button
+                JButton startBtn = createMainButton("Start Game");
+                startBtn.setPreferredSize(new Dimension(240, 60));
+                startBtn.setMaximumSize(new Dimension(240, 60));
+                startBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+                startBtn.addActionListener(e -> {
+                    hideOverlay();
+                    onSelect.accept(slider.getValue());
+                });
+                content.add(startBtn);
+
                 return content;
             }
 

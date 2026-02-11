@@ -6,6 +6,10 @@ import java.awt.Color;
  * Defines the color scheme for the board and highlights.
  */
 public class BoardTheme {
+    // --- Default Theme Colors (Teal/Blue style) ---
+    public static final Color LIGHT_SQUARE_DEFAULT = new Color(174, 221, 236); // #aeddec
+    public static final Color DARK_TEAL_DEFAULT = new Color(59, 107, 124); // #3b6b7c
+
     // Square colors
     public final Color lightSquare;
     public final Color darkSquare;
@@ -30,8 +34,8 @@ public class BoardTheme {
     // Default Theme (Blue/Teal style currently in use)
     public static BoardTheme DEFAULT() {
         return new BoardTheme(
-                new Color(160, 221, 235), // Light (Blueish)
-                new Color(32, 108, 125), // Dark (Teal)
+                LIGHT_SQUARE_DEFAULT, // Light (Blueish)
+                DARK_TEAL_DEFAULT, // Dark (Teal)
                 new Color(0, 255, 0, 128), // Selection (Green transp)
                 new Color(255, 255, 0, 128), // Last Move (Yellow transp)
                 new Color(255, 0, 0, 180), // Check (Red transp)

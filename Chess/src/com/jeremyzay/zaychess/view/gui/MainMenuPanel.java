@@ -6,6 +6,11 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.swing.*;
 
+import com.jeremyzay.zaychess.model.pieces.*;
+import com.jeremyzay.zaychess.model.util.PlayerColor;
+import com.jeremyzay.zaychess.model.util.Position;
+import com.jeremyzay.zaychess.view.gui.theme.BoardTheme;
+
 /**
  * Revamped minimalist main menu with Precise Dynamic Scaling.
  * Guaranteed to fit even in extreme window shapes by using an algebraic
@@ -15,8 +20,8 @@ public class MainMenuPanel extends JPanel {
 
     // --- Color Palette ---
     private static final Color BG_GRAY = new Color(200, 200, 200); // #c8c8c8
-    private static final Color DARK_TEAL = new Color(59, 107, 124); // #3b6b7c
-    private static final Color LIGHT_BLUE = new Color(174, 221, 236); // #aeddec
+    private static final Color DARK_TEAL = BoardTheme.DARK_TEAL_DEFAULT;
+    private static final Color LIGHT_BLUE = BoardTheme.LIGHT_SQUARE_DEFAULT;
     private static final Color BLACK = new Color(15, 15, 15); // #0f0f0f
     private static final Color WHITE = new Color(255, 255, 255); // #ffffff
 
@@ -37,8 +42,16 @@ public class MainMenuPanel extends JPanel {
     private float scale = 1.0f;
     private JLabel titleLabel;
     private final List<JButton> buttons = new ArrayList<>();
+    private JPanel centerPanel, southPanel;
     private JPanel stripeNorth, stripeAbove, stripeBottom;
-    private JPanel centerPanel;
+
+    // --- Interactive Toys ---
+    private final List<MenuPiece> menuPieces = new ArrayList<>();
+    private DragGlassPane dragGlassPane;
+    private MenuPiece draggedPiece = null;
+    private Point pressPointScreen = null;
+    private boolean isDraggingToy = false;
+    private static final int TOY_DRAG_THRESHOLD = 5;
 
     public MainMenuPanel(MainFrame frame, int width) {
         this();
@@ -57,7 +70,12 @@ public class MainMenuPanel extends JPanel {
         add(centerPanel, BorderLayout.CENTER);
 
         // 3. Bottom Decoration
-        add(createBottomDecoration(), BorderLayout.SOUTH);
+        southPanel = createBottomDecoration();
+        add(southPanel, BorderLayout.SOUTH);
+
+        // 4. Interactive Toys
+        initMenuPieces();
+        initToyInteractivity();
 
         // --- Handle Resizing ---
         addComponentListener(new ComponentAdapter() {
@@ -139,6 +157,152 @@ public class MainMenuPanel extends JPanel {
 
         revalidate();
         repaint();
+    }
+
+    private void initMenuPieces() {
+        PlayerColor color = PlayerColor.BLACK;
+        menuPieces.add(new MenuPiece(new Rook(color, new Position(0, 0)), 0));
+        menuPieces.add(new MenuPiece(new Knight(color, new Position(0, 1)), 1));
+        menuPieces.add(new MenuPiece(new Bishop(color, new Position(0, 2)), 2));
+        menuPieces.add(new MenuPiece(new Queen(color, new Position(0, 3)), 3));
+        menuPieces.add(new MenuPiece(new King(color, new Position(0, 4)), 4));
+        menuPieces.add(new MenuPiece(new Bishop(color, new Position(0, 5)), 5));
+        menuPieces.add(new MenuPiece(new Knight(color, new Position(0, 6)), 6));
+        menuPieces.add(new MenuPiece(new Rook(color, new Position(0, 7)), 7));
+    }
+
+    private void initToyInteractivity() {
+        MouseAdapter ma = new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                // Check if we hit a piece
+                Point p = e.getPoint();
+                for (MenuPiece mp : menuPieces) {
+                    if (mp.getBounds().contains(p)) {
+                        draggedPiece = mp;
+                        pressPointScreen = e.getLocationOnScreen();
+                        isDraggingToy = false;
+                        return;
+                    }
+                }
+            }
+
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (draggedPiece == null)
+                    return;
+
+                if (!isDraggingToy) {
+                    double dist = e.getLocationOnScreen().distance(pressPointScreen);
+                    if (dist > TOY_DRAG_THRESHOLD) {
+                        isDraggingToy = true;
+                        if (dragGlassPane == null) {
+                            dragGlassPane = new DragGlassPane();
+                            MainFrame.getInstance().setGlassPane(dragGlassPane);
+                        }
+                        dragGlassPane.setVisible(true);
+
+                        int size = draggedPiece.getSize();
+                        // Convert local center to glass pane
+                        Point centerLocal = new Point((int) draggedPiece.getBounds().getCenterX(),
+                                (int) draggedPiece.getBounds().getCenterY());
+                        Point originOnGlass = SwingUtilities.convertPoint(MainMenuPanel.this, centerLocal,
+                                dragGlassPane);
+
+                        draggedPiece.visible = false;
+                        dragGlassPane.startDrag(draggedPiece.piece, null, originOnGlass, size);
+                        repaint();
+                    }
+                }
+
+                if (isDraggingToy && dragGlassPane != null) {
+                    Point glassPt = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), dragGlassPane);
+                    dragGlassPane.updateDrag(glassPt);
+                }
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                if (isDraggingToy && dragGlassPane != null) {
+                    dragGlassPane.endDrag(false); // Animate snap back
+
+                    final MenuPiece pieceToRestore = draggedPiece;
+                    Timer restoreTimer = new Timer(200, ex -> {
+                        if (pieceToRestore != null) {
+                            pieceToRestore.visible = true;
+                            repaint();
+                        }
+                    });
+                    restoreTimer.setRepeats(false);
+                    restoreTimer.start();
+                }
+                draggedPiece = null;
+                isDraggingToy = false;
+            }
+        };
+        addMouseListener(ma);
+        addMouseMotionListener(ma);
+    }
+
+    @Override
+    protected void paintChildren(Graphics g) {
+        super.paintChildren(g);
+        // Paint menu pieces on top of children (stripes/checkerboard)
+        for (MenuPiece mp : menuPieces) {
+            mp.paint(g);
+        }
+    }
+
+    private class MenuPiece {
+        final Piece piece;
+        final int col;
+        boolean visible = true;
+
+        MenuPiece(Piece piece, int col) {
+            this.piece = piece;
+            this.col = col;
+        }
+
+        Rectangle getBounds() {
+            int w = getWidth();
+            int h = getHeight();
+            int checkH = w / 8;
+
+            // Size relative to squares (80% of square width)
+            int size = (int) (checkH * 0.80);
+
+            // Center in the checkerboard column
+            double colWidth = (double) w / 8.0;
+            int x = (int) (colWidth * col + (colWidth - size) / 2);
+
+            // Center vertically within the checkerboard row
+            // South decoration = stripeAbove + checkerboard + stripeBottom
+            int finalStripeH = (int) (STRIPE_NOMINAL_H * scale);
+            if (finalStripeH < 1)
+                finalStripeH = 1;
+            int stripeAboveH = finalStripeH * STRIPE_ABOVE_SEQ.length;
+            int stripeBottomH = finalStripeH * STRIPE_BOTTOM_SEQ.length;
+            int southH = checkH + stripeAboveH + stripeBottomH;
+
+            // y = top of south panel + stripeAbove height + centering in checker row
+            int y = (h - southH) + stripeAboveH + (checkH - size) / 2;
+
+            return new Rectangle(x, y, size, size);
+        }
+
+        int getSize() {
+            int w = getWidth();
+            int checkH = w / 8;
+            return (int) (checkH * 0.80);
+        }
+
+        void paint(Graphics g) {
+            if (!visible)
+                return;
+            Rectangle b = getBounds();
+            Icon icon = ResourceLoader.getPieceIcon(piece, b.width);
+            icon.paintIcon(MainMenuPanel.this, g, b.x, b.y);
+        }
     }
 
     private JPanel createStripePanel(final Color[] seq) {

@@ -79,4 +79,12 @@ public class GameOverDialog extends OverlayPanel {
 
         return content;
     }
+
+    @Override
+    protected JComponent createFooter() {
+        JButton closeBtn = createSecondaryButton("Close");
+        closeBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        closeBtn.addActionListener(e -> hideOverlay());
+        return closeBtn;
+    }
 }

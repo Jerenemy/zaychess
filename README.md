@@ -95,8 +95,9 @@ sudo ufw allow 8080/tcp
 - [x] Drag-and-Drop Support
 - [ ] Scaled difficulty AI
 - [x] Captured pieces display
-- [x] improve ui of captured pieces panel
-- [x] make buttons with squircles
-- fix local game to ai no loading screen bug (critical for not letting join own multiplayer game)
+- [x] Improve UI of captured pieces panel
+- [x] Modern UI with unified "squircle" buttons
+- [x] Fix local game to AI loading screen bug
+- [x] Close button on Game Over dialog
 - [ ] Clock functionality
 - [ ] Theme selection UI

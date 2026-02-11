@@ -7,75 +7,61 @@
     <title>Sleek Chess Menu</title>
     <style>
         :root {
+            /* Color Palette */
             --dark-teal: #3b6b7c;
             --light-blue: #aeddec;
             --bg-gray: #c8c8c8;
-            --strip-black: #0f0f0f;
-            --strip-white: #ffffff;
+            --black: #0f0f0f;
+            --white: #ffffff;
         }
 
         body {
             margin: 0;
             padding: 0;
-            background-color: #f0f0f0;
-            /* Neutral surrounding background */
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background-color: var(--bg-gray);
+            /* Match frame color since it fills page */
             height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            /* Prevent scrollbars */
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
         }
 
-        /* The Main Game "Frame" */
-        .game-card {
+        .menu-frame {
             width: 100%;
-            max-width: 400px;
-            /* Mobile/Card width */
-            height: 600px;
+            height: 100%;
             background-color: var(--bg-gray);
             display: flex;
-            flex-direction: column-reverse;
-            /* Building from bottom up as described */
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-            position: relative;
+            flex-direction: column;
         }
 
-        /* 1. Black Line at the bottom */
-        .bottom-line {
-            height: 8px;
-            background-color: var(--strip-black);
+        /* --- Top Strips --- */
+        .strip {
             width: 100%;
-            flex-shrink: 0;
+            height: 6px;
+            /* Uniform thinness */
         }
 
-        /* 2. 8 Square Checks Row */
-        .checker-row {
-            display: flex;
-            height: 50px;
-            /* Square height */
-            width: 100%;
-            flex-shrink: 0;
+        .strip-white {
+            background-color: var(--white);
         }
 
-        .check {
-            flex: 1;
-            /* evenly divide into 8 */
-            height: 100%;
-        }
-
-        /* Alternating Colors */
-        .check:nth-child(odd) {
+        .strip-dark-blue {
             background-color: var(--dark-teal);
         }
 
-        .check:nth-child(even) {
+        .strip-light-blue {
             background-color: var(--light-blue);
         }
 
-        /* 3. Main Body (Gray) with Buttons */
-        .main-body {
+        .strip-black {
+            background-color: var(--black);
+        }
+
+        /* --- Main Body --- */
+        .menu-body {
             flex-grow: 1;
-            /* Fills the rest of the space */
+            /* Fills available space */
             background-color: var(--bg-gray);
             display: flex;
             flex-direction: column;
@@ -87,64 +73,86 @@
 
         .menu-btn {
             width: 100%;
-            padding: 15px 0;
-            background: transparent;
-            border: 2px solid var(--strip-black);
-            color: var(--strip-black);
+            max-width: 300px;
+            /* Reduced width */
+            padding: 12px;
+            /* Reduced padding */
+            background: var(--white);
+            /* Solid White */
+            border: 2px solid var(--black);
+            color: var(--black);
             font-size: 1rem;
-            font-weight: 700;
+            /* Slightly smaller text */
+            font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 3px;
             cursor: pointer;
             transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         .menu-btn:hover {
-            background-color: var(--strip-black);
-            color: var(--bg-gray);
+            background-color: var(--black);
+            color: var(--white);
+            transform: scale(1.02);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
         }
 
-        /* 4. Top Strips (Stacked visually top-to-bottom, but code is bottom-up logic) 
-           We use a wrapper to stack them cleanly at the top of the flex column.
-        */
-        .top-strips {
+        /* --- Bottom Decoration --- */
+        .checker-row {
             display: flex;
-            flex-direction: column-reverse;
-            /* To match your description order bottom-up */
             width: 100%;
+            /* There are 8 checks across (100% width). 
+               To make them square, the height must be 1/8th of the viewport width.
+               100vw / 8 = 12.5vw 
+            */
+            height: 12.5vw;
         }
 
-        /* "Then a thin black strip" (closest to body) */
-        .strip-1-black {
-            height: 5px;
-            background-color: var(--strip-black);
+        .check {
+            flex: 1;
+            /* Splits width evenly into 8 */
+            height: 100%;
         }
 
-        /* "A thick light blue strip" */
-        .strip-2-lightblue {
-            height: 40px;
-            background-color: var(--light-blue);
-        }
-
-        /* "A thin dark blue strip" */
-        .strip-3-darkblue {
-            height: 5px;
+        .check:nth-child(odd) {
             background-color: var(--dark-teal);
         }
 
-        /* "A thin white strip" (Topmost) */
-        .strip-4-white {
-            height: 5px;
-            background-color: var(--strip-white);
+        .check:nth-child(even) {
+            background-color: var(--light-blue);
+        }
+
+        .bottom-line {
+            width: 100%;
+            height: 6px;
+            /* Matches top strips thickness */
+            background-color: var(--black);
         }
     </style>
 </head>
 
 <body>
 
-    <div class="game-card">
-        <div class="bottom-line"></div>
+    <div class="menu-frame">
+        <!-- Top Strips (Uniform Thickness) -->
+        <div class="strip strip-white"></div>
+        <div class="strip strip-dark-blue"></div>
+        <div class="strip strip-light-blue"></div>
+        <div class="strip strip-black"></div>
 
+        <!-- Main Content -->
+        <div class="menu-body">
+            <h1
+                style="color: var(--black); letter-spacing: 8px; margin-bottom: 30px; font-size: 4rem; text-transform: uppercase;">
+                Chess</h1>
+            <button class="menu-btn">New Game</button>
+            <button class="menu-btn">Continue</button>
+            <button class="menu-btn">Settings</button>
+            <button class="menu-btn">Quit</button>
+        </div>
+
+        <!-- Bottom Decoration -->
         <div class="checker-row">
             <div class="check"></div>
             <div class="check"></div>
@@ -156,19 +164,8 @@
             <div class="check"></div>
         </div>
 
-        <div class="main-body">
-            <button class="menu-btn">New Game</button>
-            <button class="menu-btn">Load Game</button>
-            <button class="menu-btn">Options</button>
-            <button class="menu-btn">Quit</button>
-        </div>
-
-        <div class="top-strips">
-            <div class="strip-1-black"></div>
-            <div class="strip-2-lightblue"></div>
-            <div class="strip-3-darkblue"></div>
-            <div class="strip-4-white"></div>
-        </div>
+        <!-- Bottom Line -->
+        <div class="bottom-line"></div>
     </div>
 
 </body>

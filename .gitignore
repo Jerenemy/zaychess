@@ -10,3 +10,5 @@ bin/
 !build-mac-pkg-mas-12-lic.sh
 !make_icns.shlib/
 **old**
+/inspo/
+/resize/

@@ -106,6 +106,29 @@ public class ChessPanel extends JPanel {
         });
         topBar.add(exitButton);
 
+        // Ambience Button
+        ZayButton soundButton = new ZayButton("🔊");
+        soundButton.setPreferredSize(new Dimension(50, 40));
+        soundButton.setToolTipText("Background Ambience");
+        soundButton.addActionListener(e -> {
+            JPopupMenu menu = new JPopupMenu();
+            JMenuItem stop = new JMenuItem("No Ambience");
+            stop.addActionListener(
+                    a -> com.jeremyzay.zaychess.services.infrastructure.audio.SoundService.stopAmbience());
+            menu.add(stop);
+            menu.addSeparator();
+
+            for (com.jeremyzay.zaychess.services.infrastructure.audio.SoundService.Ambience amb : com.jeremyzay.zaychess.services.infrastructure.audio.SoundService.Ambience
+                    .values()) {
+                JMenuItem item = new JMenuItem(amb.name().replace("_", " "));
+                item.addActionListener(
+                        a -> com.jeremyzay.zaychess.services.infrastructure.audio.SoundService.startAmbience(amb));
+                menu.add(item);
+            }
+            menu.show(soundButton, 0, soundButton.getHeight());
+        });
+        topBar.add(soundButton);
+
         add(topBar, BorderLayout.NORTH);
 
         // --------- CENTER: left captured | board | right moves ---------

@@ -546,7 +546,6 @@ public class GameController implements NetworkTransport.Listener {
 		// UI highlight
 		highlightLegalMoves(p);
 
-		Piece piece = gameState.getPieceAt(p);
 		if (gameState.isInCheck())
 			ChessPanel.getStatusPanel().setStatus("Turn: " + gameState.getTurn(), Color.MAGENTA);
 		else
@@ -756,6 +755,19 @@ public class GameController implements NetworkTransport.Listener {
 		}
 
 		// apply & UI
+		if (m.getMoveType() == com.jeremyzay.zaychess.model.move.MoveType.CASTLE) {
+			com.jeremyzay.zaychess.services.infrastructure.audio.SoundService
+					.play(com.jeremyzay.zaychess.services.infrastructure.audio.SoundService.SFX.CASTLE);
+		} else if (m.getMoveType() == com.jeremyzay.zaychess.model.move.MoveType.PROMOTION) {
+			com.jeremyzay.zaychess.services.infrastructure.audio.SoundService
+					.play(com.jeremyzay.zaychess.services.infrastructure.audio.SoundService.SFX.PROMOTE);
+		} else if (capturedPiece != null) {
+			com.jeremyzay.zaychess.services.infrastructure.audio.SoundService
+					.play(com.jeremyzay.zaychess.services.infrastructure.audio.SoundService.SFX.CAPTURE);
+		} else {
+			com.jeremyzay.zaychess.services.infrastructure.audio.SoundService
+					.play(com.jeremyzay.zaychess.services.infrastructure.audio.SoundService.SFX.MOVE);
+		}
 		gameState.applyMove(m);
 
 		// update captured pieces panel
@@ -868,6 +880,8 @@ public class GameController implements NetworkTransport.Listener {
 		}
 
 		ChessPanel.getStatusPanel().setStatus(msg, java.awt.Color.GREEN);
+		com.jeremyzay.zaychess.services.infrastructure.audio.SoundService
+				.play(com.jeremyzay.zaychess.services.infrastructure.audio.SoundService.SFX.GAME_OVER);
 
 		if (!suppressDialogs) {
 			activeGameOverDialog = new com.jeremyzay.zaychess.view.gui.GameOverDialog(
@@ -985,6 +999,8 @@ public class GameController implements NetworkTransport.Listener {
 		ChessPanel.getCapturedPiecesPanel().updateScore(gameState.getBoard());
 
 		if (gameState.isInCheck()) {
+			com.jeremyzay.zaychess.services.infrastructure.audio.SoundService
+					.play(com.jeremyzay.zaychess.services.infrastructure.audio.SoundService.SFX.CHECK);
 			ChessPanel.getStatusPanel().setStatus(gameState.getTurn() + " is in check!", java.awt.Color.MAGENTA);
 			// Highlight King in check
 			com.jeremyzay.zaychess.model.util.Position kingPos = gameState.getBoard().findKing(gameState.getTurn());
@@ -1429,13 +1445,6 @@ public class GameController implements NetworkTransport.Listener {
 	}
 
 	private static final boolean RANK0_IS_BOTTOM = false; // set false if (0,0)==a8
-
-	private String sq(Position p) {
-		int f = p.getFile(), r = p.getRank();
-		char file = (char) ('a' + f);
-		int rank = RANK0_IS_BOTTOM ? (r + 1) : (8 - r);
-		return "" + file + rank;
-	}
 
 	private Position parseSquare(String s) {
 		if (s == null || s.length() < 2)

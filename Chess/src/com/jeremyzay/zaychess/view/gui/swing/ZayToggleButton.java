@@ -33,6 +33,14 @@ public class ZayToggleButton extends JToggleButton {
             public void mouseExited(MouseEvent e) {
                 repaint();
             }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (isEnabled()) {
+                    com.jeremyzay.zaychess.services.infrastructure.audio.SoundService.play(
+                            com.jeremyzay.zaychess.services.infrastructure.audio.SoundService.SFX.UI_CLICK);
+                }
+            }
         });
     }
 

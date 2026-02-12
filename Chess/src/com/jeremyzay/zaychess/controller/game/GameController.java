@@ -263,6 +263,18 @@ public class GameController implements NetworkTransport.Listener {
 			ChessPanel.getStatusPanel().setStatus("Opponent declined the draw offer", Color.ORANGE);
 			return;
 		}
+		if ("OFFER_REMATCH".equals(mm.type())) {
+			showRematchOfferDialog(localSide);
+			return;
+		}
+		if ("ACCEPT_REMATCH".equals(mm.type())) {
+			restartGame();
+			return;
+		}
+		if ("DECLINE_REMATCH".equals(mm.type())) {
+			ChessPanel.getStatusPanel().setStatus("Opponent declined the rematch request", Color.ORANGE);
+			return;
+		}
 
 		Position from = new Position(mm.fromRank(), mm.fromFile());
 		Position to = new Position(mm.toRank(), mm.toFile());
@@ -658,6 +670,32 @@ public class GameController implements NetworkTransport.Listener {
 		}).showOverlay();
 	}
 
+	public void requestRematch() {
+		if (isOnline()) {
+			transport.send(com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec.encodeOfferRematch());
+			ChessPanel.getStatusPanel().setStatus("Rematch request sent...", Color.BLUE);
+		} else {
+			// Local: just restart
+			restartGame();
+		}
+	}
+
+	private void showRematchOfferDialog(PlayerColor targetColor) {
+		String name = (targetColor == PlayerColor.WHITE) ? "White" : "Black";
+		String msg = name + ", do you accept the rematch request?";
+		new com.jeremyzay.zaychess.view.gui.RematchOfferDialog(msg, () -> {
+			if (isOnline()) {
+				transport.send(com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec.encodeAcceptRematch());
+			}
+			restartGame();
+		}, () -> {
+			if (isOnline()) {
+				transport.send(com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec.encodeDeclineRematch());
+			}
+			ChessPanel.getStatusPanel().setStatus("Rematch request declined", Color.ORANGE);
+		}).showOverlay();
+	}
+
 	/**
 	 * Records history and logs, applies the move to {@link GameState},
 	 * updates the board UI and status, and optionally broadcasts it.
@@ -806,7 +844,7 @@ public class GameController implements NetworkTransport.Listener {
 			new com.jeremyzay.zaychess.view.gui.GameOverDialog(
 					msg,
 					winner,
-					this::restartGame,
+					this::requestRematch,
 					this::returnToMenu).showOverlay();
 		}
 	}

@@ -39,6 +39,18 @@ public final class MoveCodec {
         return "DECLINE_DRAW";
     }
 
+    public static String encodeOfferRematch() {
+        return "OFFER_REMATCH";
+    }
+
+    public static String encodeAcceptRematch() {
+        return "ACCEPT_REMATCH";
+    }
+
+    public static String encodeDeclineRematch() {
+        return "DECLINE_REMATCH";
+    }
+
     /**
      * Try to decode a line into a MoveMessage.
      *
@@ -61,6 +73,15 @@ public final class MoveCodec {
             }
             if (line.equals("DECLINE_DRAW")) {
                 return new MoveMessage(-1, -1, -1, -1, "DECLINE_DRAW");
+            }
+            if (line.equals("OFFER_REMATCH")) {
+                return new MoveMessage(-1, -1, -1, -1, "OFFER_REMATCH");
+            }
+            if (line.equals("ACCEPT_REMATCH")) {
+                return new MoveMessage(-1, -1, -1, -1, "ACCEPT_REMATCH");
+            }
+            if (line.equals("DECLINE_REMATCH")) {
+                return new MoveMessage(-1, -1, -1, -1, "DECLINE_REMATCH");
             }
             if (!line.startsWith("MOVE|"))
                 return null;

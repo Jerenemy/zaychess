@@ -316,9 +316,9 @@ public class MainFrame extends JFrame {
                     if (val == 1)
                         text = "1 (Aggressive)";
                     if (val == 2)
-                        text = "2 (Passive Random)";
+                        text = "2 (Passive/Aggressive)";
                     if (val == 3)
-                        text = "3 (Pure Random)";
+                        text = "3 (Normal/Aggressive/Passive)";
                     if (val == 5)
                         text = "5 (Medium)";
                     if (val == 10)

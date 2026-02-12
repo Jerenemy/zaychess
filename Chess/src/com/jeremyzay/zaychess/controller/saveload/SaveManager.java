@@ -7,6 +7,7 @@ import com.jeremyzay.zaychess.model.move.MoveType;
 import com.jeremyzay.zaychess.services.application.notation.NotationSAN;
 import com.jeremyzay.zaychess.services.infrastructure.network.UciCodec;
 
+import com.jeremyzay.zaychess.model.pieces.Piece;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -83,12 +84,28 @@ public final class SaveManager {
             // Record in history
             controller.getHistory().record(gs, actualMove, before);
 
+            // Detect capture for UI
+            Piece capturedPiece = null;
+            if (actualMove.getMoveType() == MoveType.EN_PASSANT) {
+                int epRank = actualMove.getToPos().getRank();
+                int epFile = actualMove.getToPos().getFile();
+                var moverColor = before.getPieceColorAt(actualMove.getFromPos());
+                int capturedRank = (moverColor == com.jeremyzay.zaychess.model.util.PlayerColor.WHITE) ? epRank + 1
+                        : epRank - 1;
+                capturedPiece = before.getPieceAt(capturedRank, epFile);
+            } else {
+                capturedPiece = before.getPieceAt(actualMove.getToPos());
+            }
+
             // Apply move
             gs.applyMove(actualMove);
 
             // Update logs
             controller.getWireLog().add(line);
             controller.dispatchMoveInfo(san);
+
+            // Sync captureLog and UI via recordCapture
+            controller.recordCapture(capturedPiece);
         }
 
         // Refresh the GUI if it is present

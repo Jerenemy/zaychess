@@ -1,19 +1,15 @@
 package com.jeremyzay.zaychess.controller.game;
 
-import com.jeremyzay.zaychess.model.game.*;
-import com.jeremyzay.zaychess.model.move.*;
 import com.jeremyzay.zaychess.model.game.GameState;
 import com.jeremyzay.zaychess.model.move.Move;
 import com.jeremyzay.zaychess.model.move.MoveGenerator;
 import com.jeremyzay.zaychess.model.move.MoveType;
 import com.jeremyzay.zaychess.model.move.PromotionPiece;
 import com.jeremyzay.zaychess.model.pieces.Piece;
-import com.jeremyzay.zaychess.model.rules.GameOverType;
 import com.jeremyzay.zaychess.model.util.PlayerColor;
 import com.jeremyzay.zaychess.model.util.Position;
 import com.jeremyzay.zaychess.services.infrastructure.engine.EngineService;
 import com.jeremyzay.zaychess.services.infrastructure.engine.SerendipityEngineService;
-import com.jeremyzay.zaychess.view.gui.*;
 import com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec;
 import com.jeremyzay.zaychess.services.infrastructure.network.MoveMessage;
 import com.jeremyzay.zaychess.services.infrastructure.network.NetworkTransport;
@@ -632,10 +628,7 @@ public class GameController implements NetworkTransport.Listener {
 		gameState.applyMove(m);
 
 		// update captured pieces panel
-		captureLog.add(capturedPiece); // null if no capture — keeps in sync with move history
-		if (capturedPiece != null) {
-			ChessPanel.getCapturedPiecesPanel().addCapturedPiece(capturedPiece);
-		}
+		recordCapture(capturedPiece);
 		if (boardPanel != null) {
 			boolean flipped = false;
 			// Local hotseat: flip if the turn perspective changed
@@ -658,6 +651,13 @@ public class GameController implements NetworkTransport.Listener {
 
 		if (broadcast)
 			sendIfOnline(m);
+	}
+
+	public void recordCapture(Piece capturedPiece) {
+		captureLog.add(capturedPiece);
+		if (capturedPiece != null) {
+			ChessPanel.getCapturedPiecesPanel().addCapturedPiece(capturedPiece);
+		}
 	}
 
 	// ──────────────────────────────────────────────────────────────────────────────

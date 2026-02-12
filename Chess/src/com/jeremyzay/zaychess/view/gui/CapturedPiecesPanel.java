@@ -94,6 +94,8 @@ public class CapturedPiecesPanel extends JPanel {
     public void clear() {
         whiteCaptured.clear();
         blackCaptured.clear();
+        whiteScoreText = "";
+        blackScoreText = "";
         repaint();
     }
 

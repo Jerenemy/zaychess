@@ -114,6 +114,7 @@ public class MainFrame extends JFrame {
 
                 ChessPanel.getStatusPanel().setStatus("Ready");
                 ChessPanel.getMoveListPanel().clearMoves();
+                ChessPanel.getCapturedPiecesPanel().clear();
 
                 setCursor(Cursor.getDefaultCursor());
                 isResetting = false;

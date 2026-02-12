@@ -99,5 +99,16 @@ sudo ufw allow 8080/tcp
 - [x] Modern UI with unified "squircle" buttons
 - [x] Fix local game to AI loading screen bug
 - [x] Close button on Game Over dialog
+- [x] Sound effects
+- [x] Fix sound effects on bluetooth
+- [x] Make 2 new ai difficulties: 
+    - half passive, half aggressive
+    - 1/3 passive, 1/3 normal, 1/3 aggressive
+- [ ] add settings where you can toggle sound on and off (or just put as button on home screen)
+- [ ] add button to flip board in local mode
+    - [ ] make sure it works with undo
+    - [ ] animate the flip
+- [ ] add sound elements to playing with home screen toy pieces
+- [ ] add ai arena mode to watch ai's of different difficulties play each other
 - [ ] Clock functionality
 - [ ] Theme selection UI

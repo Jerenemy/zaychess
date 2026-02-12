@@ -84,6 +84,13 @@ public class ChessPanel extends JPanel {
             topBar.add(saveButton);
         }
 
+        ZayButton resignButton = new ZayButton("Resign");
+        resignButton.setPreferredSize(new Dimension(80, 40));
+        resignButton.addActionListener(e -> {
+            controller.resign();
+        });
+        topBar.add(resignButton);
+
         ZayButton exitButton = new ZayButton("Menu");
         exitButton.setPreferredSize(new Dimension(80, 40));
         exitButton.addActionListener(e -> {

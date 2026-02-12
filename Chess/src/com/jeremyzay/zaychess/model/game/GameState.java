@@ -29,6 +29,7 @@ public class GameState {
     private int halfmoveClock;
     private int fullmoveNumber;
     private final java.util.List<String> positionHistory = new java.util.ArrayList<>();
+    private PlayerColor resignedColor = null;
 
     /** Creates a new game state with the default chess starting position. */
     public GameState() {
@@ -48,6 +49,7 @@ public class GameState {
         this.halfmoveClock = other.halfmoveClock;
         this.fullmoveNumber = other.fullmoveNumber;
         this.positionHistory.addAll(other.positionHistory);
+        this.resignedColor = other.resignedColor;
     }
 
     /** @return a fresh deep copy of this game state */
@@ -200,7 +202,15 @@ public class GameState {
         if (isFiftyMoveRule())
             return true;
 
-        return false;
+        return resignedColor != null;
+    }
+
+    public void resign(PlayerColor color) {
+        this.resignedColor = color;
+    }
+
+    public PlayerColor getResignedColor() {
+        return resignedColor;
     }
 
     private boolean isInsufficientMaterial() {
@@ -255,6 +265,8 @@ public class GameState {
     public GameOverType getGameOverType() {
         if (getKingOfColor(turn).isInCheck(this))
             return GameOverType.CHECKMATE;
+        if (resignedColor != null)
+            return GameOverType.RESIGN;
         if (isInsufficientMaterial())
             return GameOverType.INSUFFICIENT_MATERIAL;
         if (isThreefoldRepetition())
@@ -345,5 +357,6 @@ public class GameState {
         this.fullmoveNumber = snap.fullmoveNumber;
         this.positionHistory.clear();
         this.positionHistory.addAll(snap.positionHistory);
+        this.resignedColor = snap.resignedColor;
     }
 }

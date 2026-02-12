@@ -244,6 +244,13 @@ public class GameController implements NetworkTransport.Listener {
 	 * @param mm a decoded network move message
 	 */
 	private void applyNetworkMove(MoveMessage mm) {
+		if ("RESIGN".equals(mm.type())) {
+			PlayerColor resigningPlayer = (localSide != null) ? localSide.getOpposite() : gameState.getTurn();
+			gameState.resign(resigningPlayer);
+			postMoveUiChecks();
+			return;
+		}
+
 		Position from = new Position(mm.fromRank(), mm.fromFile());
 		Position to = new Position(mm.toRank(), mm.toFile());
 
@@ -594,6 +601,20 @@ public class GameController implements NetworkTransport.Listener {
 		selectedPosition = null; // drop selection after an illegal try
 	}
 
+	public void resign() {
+		if (gameState.isGameOver())
+			return;
+
+		new com.jeremyzay.zaychess.view.gui.ResignConfirmDialog(() -> {
+			gameState.resign(gameState.getTurn());
+			postMoveUiChecks();
+
+			if (isOnline()) {
+				transport.send(com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec.encodeResign());
+			}
+		}).showOverlay();
+	}
+
 	/**
 	 * Records history and logs, applies the move to {@link GameState},
 	 * updates the board UI and status, and optionally broadcasts it.
@@ -728,7 +749,8 @@ public class GameController implements NetworkTransport.Listener {
 		} else if (type == com.jeremyzay.zaychess.model.rules.GameOverType.DRAW) {
 			msg = "Draw.";
 		} else if (type == com.jeremyzay.zaychess.model.rules.GameOverType.RESIGN) {
-			msg = "Resignation.";
+			winner = gameState.getResignedColor().getOpposite();
+			msg = "Resignation. " + (winner == PlayerColor.WHITE ? "White" : "Black") + " wins.";
 		} else {
 			msg = "Game Over.";
 		}

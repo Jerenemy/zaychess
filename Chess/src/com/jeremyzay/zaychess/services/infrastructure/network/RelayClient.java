@@ -22,7 +22,8 @@ public class RelayClient implements NetworkTransport {
     private Socket socket;
     private BufferedReader in;
     private PrintWriter out;
-    private Thread readerThread;
+    private volatile Thread readerThread;
+    private boolean started = false;
 
     // We need to notify the UI when a match is found, not just when a "move" comes
     // in.
@@ -61,7 +62,11 @@ public class RelayClient implements NetworkTransport {
     }
 
     @Override
-    public void start() {
+    public synchronized void start() {
+        if (started) {
+            return;
+        }
+        started = true;
         readerThread = new Thread(this::runLoop, "RelayClient-Reader");
         readerThread.setDaemon(true);
         readerThread.start();
@@ -171,6 +176,8 @@ public class RelayClient implements NetworkTransport {
     @Override
     public void close() {
         try {
+            // Explicitly notify server we are leaving
+            sendJson("LEAVE_GAME", null);
             if (socket != null)
                 socket.close();
         } catch (IOException ignored) {

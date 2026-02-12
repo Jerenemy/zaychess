@@ -101,6 +101,7 @@ public class ChessPanel extends JPanel {
         ZayButton exitButton = new ZayButton("Menu");
         exitButton.setPreferredSize(new Dimension(80, 40));
         exitButton.addActionListener(e -> {
+            controller.detachNetwork();
             MainFrame.getInstance().showMenu();
         });
         topBar.add(exitButton);

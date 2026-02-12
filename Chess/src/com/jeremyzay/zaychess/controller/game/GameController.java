@@ -58,6 +58,9 @@ public class GameController implements NetworkTransport.Listener {
 	private PlayerColor localSide = null;
 	private Position selectedPosition = null;
 	private boolean suppressDialogs = false;
+	private com.jeremyzay.zaychess.view.gui.GameOverDialog activeGameOverDialog;
+	private boolean localRematchRequested = false;
+	private boolean peerRematchRequested = false;
 
 	public void setSuppressDialogs(boolean suppress) {
 		this.suppressDialogs = suppress;
@@ -232,6 +235,33 @@ public class GameController implements NetworkTransport.Listener {
 	@Override
 	public void onError(Exception e) {
 		e.printStackTrace();
+		if (isOnline() && "Opponent disconnected".equals(e.getMessage())) {
+			SwingUtilities.invokeLater(() -> {
+				if (!gameState.isGameOver()) {
+					// Ongoing game: Opponent disconnected, local player wins
+					PlayerColor winner = (localSide != null) ? localSide : gameState.getTurn().getOpposite();
+					String msg = "Opponent disconnected. You win!";
+					// We don't have a specific GameOverType for disconnect, but we can treat it as
+					// a win
+					// Force game over state locally
+					gameState.resign(localSide != null ? localSide.getOpposite() : gameState.getTurn());
+
+					ChessPanel.getStatusPanel().setStatus(msg, Color.RED);
+					if (!suppressDialogs) {
+						activeGameOverDialog = new com.jeremyzay.zaychess.view.gui.GameOverDialog(
+								msg, winner, this::requestRematch, this::returnToMenu, this::detachNetwork, false); // Rematch
+																													// disabled
+						activeGameOverDialog.showOverlay();
+					}
+				} else {
+					// Game already over: just disable rematch if dialog is open
+					ChessPanel.getStatusPanel().setStatus("Opponent disconnected.", Color.ORANGE);
+					if (activeGameOverDialog != null) {
+						activeGameOverDialog.disableRematch();
+					}
+				}
+			});
+		}
 	}
 
 	// Network application
@@ -264,15 +294,20 @@ public class GameController implements NetworkTransport.Listener {
 			return;
 		}
 		if ("OFFER_REMATCH".equals(mm.type())) {
-			showRematchOfferDialog(localSide);
+			peerRematchRequested = true;
+			updateRematchStatus();
 			return;
 		}
-		if ("ACCEPT_REMATCH".equals(mm.type())) {
-			restartGame();
+		if ("CANCEL_REMATCH".equals(mm.type())) {
+			peerRematchRequested = false;
+			updateRematchStatus();
 			return;
 		}
 		if ("DECLINE_REMATCH".equals(mm.type())) {
 			ChessPanel.getStatusPanel().setStatus("Opponent declined the rematch request", Color.ORANGE);
+			if (activeGameOverDialog != null) {
+				activeGameOverDialog.disableRematch();
+			}
 			return;
 		}
 
@@ -350,7 +385,7 @@ public class GameController implements NetworkTransport.Listener {
 		this.networkReady = false;
 
 		t.setListener(this);
-		t.start();
+		// Removed redundant start() call; launcher handles starting the transport
 	}
 
 	public boolean isOnline() {
@@ -478,12 +513,12 @@ public class GameController implements NetworkTransport.Listener {
 	// ... (unchanged methods)
 
 	private void selectOrIgnore(Position p) {
-		Piece piece = gameState.getPieceAt(p);
-		if (piece == null)
+		Piece pc = gameState.getPieceAt(p);
+		if (pc == null)
 			return;
 
 		// Prevent selecting opponent's pieces
-		if (piece.getColor() != gameState.getTurn())
+		if (pc.getColor() != gameState.getTurn())
 			return;
 
 		select(p);
@@ -497,19 +532,6 @@ public class GameController implements NetworkTransport.Listener {
 		Piece from = gameState.getPieceAt(selectedPosition);
 		Piece to = gameState.getPieceAt(clicked);
 		return from != null && to != null && from.getColor() == to.getColor();
-	}
-
-	/**
-	 * @return {@code true} if the current selection is an enemy piece and the click
-	 *         is on a friendly piece;
-	 *         in this case, we switch the selection to the friendly piece.
-	 */
-	private boolean isSelectingOwnPieceAfterSelectingEnemy(Position clicked) {
-		Piece from = gameState.getPieceAt(selectedPosition);
-		Piece to = gameState.getPieceAt(clicked);
-		PlayerColor us = gameState.getTurn();
-		PlayerColor them = us.getOpposite();
-		return from != null && to != null && from.getColor() == them && to.getColor() == us;
 	}
 
 	/**
@@ -656,44 +678,51 @@ public class GameController implements NetworkTransport.Listener {
 	private void showDrawOfferDialog(PlayerColor targetColor) {
 		String name = (targetColor == PlayerColor.WHITE) ? "White" : "Black";
 		String msg = name + ", do you accept the draw offer?";
-		new com.jeremyzay.zaychess.view.gui.DrawOfferDialog(msg, () -> {
-			gameState.setDrawAgreed(true);
-			if (isOnline()) {
-				transport.send(com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec.encodeAcceptDraw());
-			}
-			postMoveUiChecks();
-		}, () -> {
-			if (isOnline()) {
-				transport.send(com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec.encodeDeclineDraw());
-			}
-			ChessPanel.getStatusPanel().setStatus("Draw offer declined", Color.ORANGE);
-		}).showOverlay();
+		com.jeremyzay.zaychess.view.gui.DrawOfferDialog dialog = new com.jeremyzay.zaychess.view.gui.DrawOfferDialog(
+				msg, () -> {
+					gameState.setDrawAgreed(true);
+					if (isOnline()) {
+						transport.send(
+								com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec.encodeAcceptDraw());
+					}
+					postMoveUiChecks();
+				}, () -> {
+					if (isOnline()) {
+						transport.send(
+								com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec.encodeDeclineDraw());
+					}
+					ChessPanel.getStatusPanel().setStatus("Draw offer declined", Color.ORANGE);
+				});
+		dialog.showOverlay();
 	}
 
 	public void requestRematch() {
 		if (isOnline()) {
-			transport.send(com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec.encodeOfferRematch());
-			ChessPanel.getStatusPanel().setStatus("Rematch request sent...", Color.BLUE);
+			if (transport == null)
+				return;
+			localRematchRequested = !localRematchRequested;
+			if (localRematchRequested) {
+				transport.send(com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec.encodeOfferRematch());
+			} else {
+				transport.send(com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec.encodeCancelRematch());
+			}
+			updateRematchStatus();
 		} else {
 			// Local: just restart
 			restartGame();
 		}
 	}
 
-	private void showRematchOfferDialog(PlayerColor targetColor) {
-		String name = (targetColor == PlayerColor.WHITE) ? "White" : "Black";
-		String msg = name + ", do you accept the rematch request?";
-		new com.jeremyzay.zaychess.view.gui.RematchOfferDialog(msg, () -> {
-			if (isOnline()) {
-				transport.send(com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec.encodeAcceptRematch());
-			}
+	private void updateRematchStatus() {
+		if (localRematchRequested && peerRematchRequested) {
+			// SYNC: Start the game
 			restartGame();
-		}, () -> {
-			if (isOnline()) {
-				transport.send(com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec.encodeDeclineRematch());
-			}
-			ChessPanel.getStatusPanel().setStatus("Rematch request declined", Color.ORANGE);
-		}).showOverlay();
+			return;
+		}
+		if (activeGameOverDialog != null) {
+			activeGameOverDialog.setLocalRematchRequested(localRematchRequested);
+			activeGameOverDialog.setPeerRematchRequested(peerRematchRequested);
+		}
 	}
 
 	/**
@@ -841,15 +870,33 @@ public class GameController implements NetworkTransport.Listener {
 		ChessPanel.getStatusPanel().setStatus(msg, java.awt.Color.GREEN);
 
 		if (!suppressDialogs) {
-			new com.jeremyzay.zaychess.view.gui.GameOverDialog(
+			activeGameOverDialog = new com.jeremyzay.zaychess.view.gui.GameOverDialog(
 					msg,
 					winner,
 					this::requestRematch,
-					this::returnToMenu).showOverlay();
+					this::returnToMenu,
+					this::detachNetwork, // onClose: clicking Close will now detach
+					true); // rematchEnabled
+			activeGameOverDialog.showOverlay();
+			if (peerRematchRequested && isOnline()) {
+				activeGameOverDialog.setPeerRematchRequested(true);
+			}
 		}
 	}
 
 	private void restartGame() {
+		boolean wasOnline = isOnline();
+		NetworkTransport savedTransport = transport;
+		PlayerColor savedLocalSide = localSide;
+
+		localRematchRequested = false;
+		peerRematchRequested = false;
+
+		if (activeGameOverDialog != null) {
+			activeGameOverDialog.hideOverlay();
+			activeGameOverDialog = null;
+		}
+
 		// Reset state
 		gameState.restoreFrom(new GameState());
 		selectedPosition = null;
@@ -860,6 +907,15 @@ public class GameController implements NetworkTransport.Listener {
 		com.jeremyzay.zaychess.view.gui.ChessPanel.getMoveListPanel().clearMoves();
 		com.jeremyzay.zaychess.view.gui.ChessPanel.getCapturedPiecesPanel().clear();
 		captureLog.clear();
+
+		// RE-ATTACH Network if we were online
+		if (wasOnline && savedTransport != null) {
+			this.transport = savedTransport;
+			this.localSide = savedLocalSide;
+			this.networkReady = true; // Ready to play!
+			transport.setListener(this);
+			// Don't call transport.start() again, it's already running!
+		}
 
 		// Update Board UI
 		if (boardPanel != null) {
@@ -912,6 +968,10 @@ public class GameController implements NetworkTransport.Listener {
 
 		SwingUtilities.invokeLater(() -> {
 			System.out.println("[DEBUG] Switching to Main Menu view...");
+			if (isOnline() && transport != null) {
+				transport.close();
+				transport = null;
+			}
 			MainFrame.getInstance().showMenu();
 		});
 	}

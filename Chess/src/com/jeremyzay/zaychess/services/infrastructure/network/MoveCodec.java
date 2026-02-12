@@ -51,6 +51,10 @@ public final class MoveCodec {
         return "DECLINE_REMATCH";
     }
 
+    public static String encodeCancelRematch() {
+        return "CANCEL_REMATCH";
+    }
+
     /**
      * Try to decode a line into a MoveMessage.
      *
@@ -82,6 +86,9 @@ public final class MoveCodec {
             }
             if (line.equals("DECLINE_REMATCH")) {
                 return new MoveMessage(-1, -1, -1, -1, "DECLINE_REMATCH");
+            }
+            if (line.equals("CANCEL_REMATCH")) {
+                return new MoveMessage(-1, -1, -1, -1, "CANCEL_REMATCH");
             }
             if (!line.startsWith("MOVE|"))
                 return null;

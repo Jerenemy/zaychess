@@ -15,6 +15,12 @@ public abstract class OverlayPanel extends JPanel {
     private static final Color CARD_BG = new Color(255, 255, 255, 240);
     private static final int CARD_ARC = 20;
 
+    public interface OnVisibilityChangeListener {
+        void onHidden();
+    }
+
+    private OnVisibilityChangeListener visibilityListener;
+
     private final JPanel card;
 
     protected OverlayPanel() {
@@ -123,6 +129,13 @@ public abstract class OverlayPanel extends JPanel {
                 frame.setGlassPane(blank);
             }
         }
+        if (visibilityListener != null) {
+            visibilityListener.onHidden();
+        }
+    }
+
+    public void setOnVisibilityChangeListener(OnVisibilityChangeListener l) {
+        this.visibilityListener = l;
     }
 
     @Override

@@ -662,7 +662,7 @@ public class GameController implements NetworkTransport.Listener {
 	}
 
 	public void offerDraw() {
-		if (gameState.isGameOver())
+		if (gameState.isGameOver() || isUsingEngine())
 			return;
 
 		if (isOnline()) {

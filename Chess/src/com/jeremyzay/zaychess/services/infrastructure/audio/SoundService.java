@@ -119,8 +119,6 @@ public class SoundService {
 
             // Use the Java AudioSystem to pick the best mixer/device
             try (AudioInputStream ais = AudioSystem.getAudioInputStream(new ByteArrayInputStream(data))) {
-                AudioFormat format = ais.getFormat();
-                DataLine.Info info = new DataLine.Info(Clip.class, format);
 
                 // Bluetooth on Mac/Java often fails if we don't handle the Mixer specifically,
                 // but getClip() is the standard way to get the default system output.

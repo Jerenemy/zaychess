@@ -30,6 +30,7 @@ public class GameState {
     private int fullmoveNumber;
     private final java.util.List<String> positionHistory = new java.util.ArrayList<>();
     private PlayerColor resignedColor = null;
+    private boolean drawAgreed = false;
 
     /** Creates a new game state with the default chess starting position. */
     public GameState() {
@@ -50,6 +51,7 @@ public class GameState {
         this.fullmoveNumber = other.fullmoveNumber;
         this.positionHistory.addAll(other.positionHistory);
         this.resignedColor = other.resignedColor;
+        this.drawAgreed = other.drawAgreed;
     }
 
     /** @return a fresh deep copy of this game state */
@@ -202,7 +204,18 @@ public class GameState {
         if (isFiftyMoveRule())
             return true;
 
-        return resignedColor != null;
+        if (resignedColor != null)
+            return true;
+
+        return drawAgreed;
+    }
+
+    public void setDrawAgreed(boolean agreed) {
+        this.drawAgreed = agreed;
+    }
+
+    public boolean isDrawAgreed() {
+        return drawAgreed;
     }
 
     public void resign(PlayerColor color) {
@@ -267,6 +280,8 @@ public class GameState {
             return GameOverType.CHECKMATE;
         if (resignedColor != null)
             return GameOverType.RESIGN;
+        if (drawAgreed)
+            return GameOverType.DRAW_AGREEMENT;
         if (isInsufficientMaterial())
             return GameOverType.INSUFFICIENT_MATERIAL;
         if (isThreefoldRepetition())
@@ -358,5 +373,6 @@ public class GameState {
         this.positionHistory.clear();
         this.positionHistory.addAll(snap.positionHistory);
         this.resignedColor = snap.resignedColor;
+        this.drawAgreed = snap.drawAgreed;
     }
 }

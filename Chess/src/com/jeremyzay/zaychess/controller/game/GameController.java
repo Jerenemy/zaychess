@@ -250,6 +250,19 @@ public class GameController implements NetworkTransport.Listener {
 			postMoveUiChecks();
 			return;
 		}
+		if ("OFFER_DRAW".equals(mm.type())) {
+			showDrawOfferDialog(localSide);
+			return;
+		}
+		if ("ACCEPT_DRAW".equals(mm.type())) {
+			gameState.setDrawAgreed(true);
+			postMoveUiChecks();
+			return;
+		}
+		if ("DECLINE_DRAW".equals(mm.type())) {
+			ChessPanel.getStatusPanel().setStatus("Opponent declined the draw offer", Color.ORANGE);
+			return;
+		}
 
 		Position from = new Position(mm.fromRank(), mm.fromFile());
 		Position to = new Position(mm.toRank(), mm.toFile());
@@ -615,6 +628,36 @@ public class GameController implements NetworkTransport.Listener {
 		}).showOverlay();
 	}
 
+	public void offerDraw() {
+		if (gameState.isGameOver())
+			return;
+
+		if (isOnline()) {
+			transport.send(com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec.encodeOfferDraw());
+			ChessPanel.getStatusPanel().setStatus("Draw offer sent...", Color.BLUE);
+		} else {
+			// Local: offer to the opponent (the one who's NOT currently moving)
+			showDrawOfferDialog(gameState.getTurn().getOpposite());
+		}
+	}
+
+	private void showDrawOfferDialog(PlayerColor targetColor) {
+		String name = (targetColor == PlayerColor.WHITE) ? "White" : "Black";
+		String msg = name + ", do you accept the draw offer?";
+		new com.jeremyzay.zaychess.view.gui.DrawOfferDialog(msg, () -> {
+			gameState.setDrawAgreed(true);
+			if (isOnline()) {
+				transport.send(com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec.encodeAcceptDraw());
+			}
+			postMoveUiChecks();
+		}, () -> {
+			if (isOnline()) {
+				transport.send(com.jeremyzay.zaychess.services.infrastructure.network.MoveCodec.encodeDeclineDraw());
+			}
+			ChessPanel.getStatusPanel().setStatus("Draw offer declined", Color.ORANGE);
+		}).showOverlay();
+	}
+
 	/**
 	 * Records history and logs, applies the move to {@link GameState},
 	 * updates the board UI and status, and optionally broadcasts it.
@@ -748,6 +791,8 @@ public class GameController implements NetworkTransport.Listener {
 			msg = "Draw by 50-Move Rule.";
 		} else if (type == com.jeremyzay.zaychess.model.rules.GameOverType.DRAW) {
 			msg = "Draw.";
+		} else if (type == com.jeremyzay.zaychess.model.rules.GameOverType.DRAW_AGREEMENT) {
+			msg = "Draw by Agreement.";
 		} else if (type == com.jeremyzay.zaychess.model.rules.GameOverType.RESIGN) {
 			winner = gameState.getResignedColor().getOpposite();
 			msg = "Resignation. " + (winner == PlayerColor.WHITE ? "White" : "Black") + " wins.";

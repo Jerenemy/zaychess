@@ -27,6 +27,18 @@ public final class MoveCodec {
         return "RESIGN";
     }
 
+    public static String encodeOfferDraw() {
+        return "OFFER_DRAW";
+    }
+
+    public static String encodeAcceptDraw() {
+        return "ACCEPT_DRAW";
+    }
+
+    public static String encodeDeclineDraw() {
+        return "DECLINE_DRAW";
+    }
+
     /**
      * Try to decode a line into a MoveMessage.
      *
@@ -40,6 +52,15 @@ public final class MoveCodec {
             if (line.equals("RESIGN")) {
                 // Special "move" indicating resignation
                 return new MoveMessage(-1, -1, -1, -1, "RESIGN");
+            }
+            if (line.equals("OFFER_DRAW")) {
+                return new MoveMessage(-1, -1, -1, -1, "OFFER_DRAW");
+            }
+            if (line.equals("ACCEPT_DRAW")) {
+                return new MoveMessage(-1, -1, -1, -1, "ACCEPT_DRAW");
+            }
+            if (line.equals("DECLINE_DRAW")) {
+                return new MoveMessage(-1, -1, -1, -1, "DECLINE_DRAW");
             }
             if (!line.startsWith("MOVE|"))
                 return null;

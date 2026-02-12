@@ -717,14 +717,18 @@ public class GameController implements NetworkTransport.Listener {
 			}
 			winner = loser.getOpposite();
 			msg = "Checkmate! " + (winner == PlayerColor.WHITE ? "White" : "Black") + " wins.";
+		} else if (type == com.jeremyzay.zaychess.model.rules.GameOverType.STALEMATE) {
+			msg = "Draw by Stalemate.";
+		} else if (type == com.jeremyzay.zaychess.model.rules.GameOverType.THREEFOLD_REPETITION) {
+			msg = "Draw by Threefold Repetition.";
+		} else if (type == com.jeremyzay.zaychess.model.rules.GameOverType.INSUFFICIENT_MATERIAL) {
+			msg = "Draw by Insufficient Material.";
+		} else if (type == com.jeremyzay.zaychess.model.rules.GameOverType.FIFTY_MOVE_RULE) {
+			msg = "Draw by 50-Move Rule.";
 		} else if (type == com.jeremyzay.zaychess.model.rules.GameOverType.DRAW) {
 			msg = "Draw.";
 		} else if (type == com.jeremyzay.zaychess.model.rules.GameOverType.RESIGN) {
 			msg = "Resignation.";
-			// In resignation, the current turn player didn't necessarily lose,
-			// but we'll assume the resigner lost.
-			// This logic depends on who triggered resignation.
-			// For now, no winner icon for resignation unless we track who resigned.
 		} else {
 			msg = "Game Over.";
 		}

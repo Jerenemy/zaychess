@@ -26,19 +26,28 @@ public class GameState {
     private final Board board;
     private PlayerColor turn;
     private final SpecialMoveHandler specialMoveHandler;
+    private int halfmoveClock;
+    private int fullmoveNumber;
+    private final java.util.List<String> positionHistory = new java.util.ArrayList<>();
 
     /** Creates a new game state with the default chess starting position. */
-    public GameState () {
+    public GameState() {
         this.board = BoardFactory.createDefaultBoard();
         this.turn = PlayerColor.WHITE;
         this.specialMoveHandler = new SpecialMoveHandler();
+        this.halfmoveClock = 0;
+        this.fullmoveNumber = 1;
+        this.positionHistory.add(com.jeremyzay.zaychess.services.application.notation.FenGenerator.toPositionFen(this));
     }
 
     /** Deep-copy constructor. Copies board, turn, and special-move state. */
     public GameState(GameState other) {
-        this.turn  = other.turn;
+        this.turn = other.turn;
         this.board = new Board(other.board);
         this.specialMoveHandler = new SpecialMoveHandler(other.specialMoveHandler);
+        this.halfmoveClock = other.halfmoveClock;
+        this.fullmoveNumber = other.fullmoveNumber;
+        this.positionHistory.addAll(other.positionHistory);
     }
 
     /** @return a fresh deep copy of this game state */
@@ -47,16 +56,34 @@ public class GameState {
     }
 
     /** @return whose turn it is to move */
-    public PlayerColor getTurn() { return turn; }
+    public PlayerColor getTurn() {
+        return turn;
+    }
 
     /** @return the underlying board */
-    public Board getBoard() { return board; }
+    public Board getBoard() {
+        return board;
+    }
 
     /** @return the special-move handler for castling/en passant flags */
-    public SpecialMoveHandler getSpecialMoveHandler() { return specialMoveHandler; }
+    public SpecialMoveHandler getSpecialMoveHandler() {
+        return specialMoveHandler;
+    }
+
+    /** @return the halfmove clock for the 50-move rule */
+    public int getHalfmoveClock() {
+        return halfmoveClock;
+    }
+
+    /** @return the fullmove number */
+    public int getFullmoveNumber() {
+        return fullmoveNumber;
+    }
 
     /** @return true if it is the given color's turn */
-    public boolean isTurn(PlayerColor color) { return getTurn() == color; }
+    public boolean isTurn(PlayerColor color) {
+        return getTurn() == color;
+    }
 
     /** Switches the turn from white to black or black to white. */
     public void changeTurn() {
@@ -64,10 +91,14 @@ public class GameState {
     }
 
     /** Retrieves the piece at the given position. */
-    public Piece getPieceAt(Position pos) { return board.getPieceAt(pos); }
+    public Piece getPieceAt(Position pos) {
+        return board.getPieceAt(pos);
+    }
 
     /** Retrieves the piece at the given coordinates. */
-    public Piece getPieceAt(int rank, int file) { return board.getPieceAt(rank, file); }
+    public Piece getPieceAt(int rank, int file) {
+        return board.getPieceAt(rank, file);
+    }
 
     /**
      * Applies a move to the game state.
@@ -77,11 +108,25 @@ public class GameState {
      * @param m the move to apply
      */
     public void applyMove(Move m) {
-        specialMoveHandler.updateHasMovedFlags(this, m);
-        specialMoveHandler.updateEnPassantTarget(this, m);
         Position from = m.getFromPos();
         Position to = m.getToPos();
         Piece mover = getPieceAt(from);
+        Piece captured = getPieceAt(to);
+
+        // Reset halfmove clock if pawn moves or capture occurs
+        if (mover instanceof Pawn || captured != null || m.getMoveType() == MoveType.EN_PASSANT) {
+            halfmoveClock = 0;
+        } else {
+            halfmoveClock++;
+        }
+
+        // Increment fullmove number after Black moves
+        if (turn == PlayerColor.BLACK) {
+            fullmoveNumber++;
+        }
+
+        specialMoveHandler.updateHasMovedFlags(this, m);
+        specialMoveHandler.updateEnPassantTarget(this, m);
 
         switch (m.getMoveType()) {
             case MoveType.EN_PASSANT:
@@ -96,11 +141,12 @@ public class GameState {
                 specialMoveHandler.moveRookDuringCastle(this, m);
                 break;
             case MoveType.PROMOTION:
-                if (m.getPromotion() == null) break; // skip if only probing
+                if (m.getPromotion() == null)
+                    break; // skip if only probing
                 PlayerColor color = board.getPieceAt(m.getFromPos()).getColor();
                 mover = switch (m.getPromotion()) {
-                    case QUEEN  -> new Queen(color, to);
-                    case ROOK   -> new Rook(color, to);
+                    case QUEEN -> new Queen(color, to);
+                    case ROOK -> new Rook(color, to);
                     case BISHOP -> new Bishop(color, to);
                     case KNIGHT -> new Knight(color, to);
                 };
@@ -112,6 +158,9 @@ public class GameState {
         setPieceAt(from, null);
         setPieceAt(m.getToPos(), mover);
         changeTurn();
+
+        // Add new position to history (ignoring move clocks for repetition)
+        positionHistory.add(com.jeremyzay.zaychess.services.application.notation.FenGenerator.toPositionFen(this));
     }
 
     /** @return the runtime class type of the piece at the origin of a move */
@@ -131,24 +180,88 @@ public class GameState {
      * @return true if no legal moves remain
      */
     public boolean isGameOver() {
+        // 1. Check if any legal moves remain
+        boolean noMoves = true;
         List<Piece> colorPieces = getPiecesOfColor(turn);
         for (Piece piece : colorPieces) {
             if (!(MoveGenerator.generateLegalMoves(this, piece.getPos())).isEmpty()) {
-                return false;
+                noMoves = false;
+                break;
             }
         }
-        return true;
+        if (noMoves)
+            return true;
+
+        // 2. Draw conditions
+        if (isInsufficientMaterial())
+            return true;
+        if (isThreefoldRepetition())
+            return true;
+        if (isFiftyMoveRule())
+            return true;
+
+        return false;
     }
 
-    /**
-     * Assumes the game is over and determines the type.
-     *
-     * @return CHECKMATE if current player's king is in check,
-     *         DRAW otherwise
-     */
+    private boolean isInsufficientMaterial() {
+        List<Piece> white = board.getPiecesOfColor(PlayerColor.WHITE);
+        List<Piece> black = board.getPiecesOfColor(PlayerColor.BLACK);
+
+        if (white.size() == 1 && black.size() == 1)
+            return true; // K vs K
+
+        if (white.size() == 2 && black.size() == 1) { // K + (B or N) vs K
+            Piece p = white.get(0) instanceof King ? white.get(1) : white.get(0);
+            if (p instanceof Bishop || p instanceof Knight)
+                return true;
+        }
+        if (white.size() == 1 && black.size() == 2) { // K vs K + (B or N)
+            Piece p = black.get(0) instanceof King ? black.get(1) : black.get(0);
+            if (p instanceof Bishop || p instanceof Knight)
+                return true;
+        }
+        if (white.size() == 2 && black.size() == 2) { // KB vs KB (same color bishops)
+            Piece wP = white.get(0) instanceof King ? white.get(1) : white.get(0);
+            Piece bP = black.get(0) instanceof King ? black.get(1) : black.get(0);
+            if (wP instanceof Bishop && bP instanceof Bishop) {
+                boolean wLight = (wP.getPos().getRank() + wP.getPos().getFile()) % 2 == 0;
+                boolean bLight = (bP.getPos().getRank() + bP.getPos().getFile()) % 2 == 0;
+                if (wLight == bLight)
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isThreefoldRepetition() {
+        // FenGenerator.toFen simplified clock/turn counters make it useful for position
+        // comparison
+        if (positionHistory.isEmpty())
+            return false;
+        String current = positionHistory.get(positionHistory.size() - 1);
+        int count = 0;
+        for (String fen : positionHistory) {
+            if (fen.equals(current)) {
+                count++;
+            }
+        }
+        return count >= 3;
+    }
+
+    private boolean isFiftyMoveRule() {
+        return halfmoveClock >= 100;
+    }
+
     public GameOverType getGameOverType() {
-        if (getKingOfColor(turn).isInCheck(this)) return GameOverType.CHECKMATE;
-        else return GameOverType.DRAW;
+        if (getKingOfColor(turn).isInCheck(this))
+            return GameOverType.CHECKMATE;
+        if (isInsufficientMaterial())
+            return GameOverType.INSUFFICIENT_MATERIAL;
+        if (isThreefoldRepetition())
+            return GameOverType.THREEFOLD_REPETITION;
+        if (isFiftyMoveRule())
+            return GameOverType.FIFTY_MOVE_RULE;
+        return GameOverType.STALEMATE;
     }
 
     /** @return list of all pieces of the given color */
@@ -160,7 +273,8 @@ public class GameState {
     public King getKingOfColor(PlayerColor color) {
         List<Piece> pieces = board.getPiecesOfColor(color);
         for (Piece piece : pieces) {
-            if (piece instanceof King) return (King) piece;
+            if (piece instanceof King)
+                return (King) piece;
         }
         return null; // should never happen
     }
@@ -172,7 +286,8 @@ public class GameState {
      *         null if drawn
      */
     public PlayerColor getWinner() {
-        if (getGameOverType() == GameOverType.CHECKMATE) return turn.getOpposite();
+        if (getGameOverType() == GameOverType.CHECKMATE)
+            return turn.getOpposite();
         return null;
     }
 
@@ -182,19 +297,23 @@ public class GameState {
     }
 
     /**
-     * Places a piece on the board at the given position and updates its coordinates.
+     * Places a piece on the board at the given position and updates its
+     * coordinates.
      */
     public void setPieceAt(Position pos, Piece piece) {
         getBoard().setPieceAt(pos, piece);
-        if (piece != null) piece.updateCoords(pos);
+        if (piece != null)
+            piece.updateCoords(pos);
     }
 
     /**
-     * Places a piece on the board at the given coordinates and updates its coordinates.
+     * Places a piece on the board at the given coordinates and updates its
+     * coordinates.
      */
     public void setPieceAt(int rank, int file, Piece piece) {
         getBoard().setPieceAt(rank, file, piece);
-        if (piece != null) piece.updateCoords(rank, file);
+        if (piece != null)
+            piece.updateCoords(rank, file);
     }
 
     /** @return the color of the piece at the given position */
@@ -222,5 +341,9 @@ public class GameState {
             }
         }
         this.specialMoveHandler.copyFrom(snap.specialMoveHandler);
+        this.halfmoveClock = snap.halfmoveClock;
+        this.fullmoveNumber = snap.fullmoveNumber;
+        this.positionHistory.clear();
+        this.positionHistory.addAll(snap.positionHistory);
     }
 }

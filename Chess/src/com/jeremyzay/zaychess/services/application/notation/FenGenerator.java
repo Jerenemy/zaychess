@@ -30,6 +30,14 @@ public final class FenGenerator {
      * @return FEN string representation
      */
     public static String toFen(GameState gs) {
+        return toPositionFen(gs) + " " + gs.getHalfmoveClock() + " " + gs.getFullmoveNumber();
+    }
+
+    /**
+     * Generates a FEN string excluding the halfmove clock and fullmove number.
+     * Useful for threefold repetition comparison.
+     */
+    public static String toPositionFen(GameState gs) {
         StringBuilder sb = new StringBuilder();
 
         // 1. Piece placement
@@ -46,14 +54,6 @@ public final class FenGenerator {
 
         // 4. En passant target
         sb.append(enPassantTarget(gs.getSpecialMoveHandler()));
-        sb.append(' ');
-
-        // 5. Halfmove clock (simplified)
-        sb.append('0');
-        sb.append(' ');
-
-        // 6. Fullmove number (simplified)
-        sb.append('1');
 
         return sb.toString();
     }

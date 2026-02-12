@@ -74,6 +74,38 @@ public class SoundService {
             }
         }
         System.out.println("[SoundService] Cached " + sfxCache.size() + " sound effects.");
+        startBluetoothKeepAlive();
+    }
+
+    /**
+     * Bluetooth headphones often "sleep" during silence, causing them to miss short
+     * SFX.
+     * This plays a continuous stream of absolute silence to keep the connection
+     * active.
+     */
+    private static void startBluetoothKeepAlive() {
+        soundPool.execute(() -> {
+            try {
+                // Create 1 second of absolute silence
+                AudioFormat format = new AudioFormat(44100, 16, 1, true, false);
+                byte[] silence = new byte[44100 * 2]; // 1 second of 16-bit mono silence
+
+                DataLine.Info info = new DataLine.Info(Clip.class, format);
+                Clip keepAliveClip = (Clip) AudioSystem.getLine(info);
+                keepAliveClip.open(format, silence, 0, silence.length);
+
+                // Set volume to almost zero just in case, though it's already digital silence
+                if (keepAliveClip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+                    ((FloatControl) keepAliveClip.getControl(FloatControl.Type.MASTER_GAIN)).setValue(-80.0f);
+                }
+
+                keepAliveClip.loop(Clip.LOOP_CONTINUOUSLY);
+                keepAliveClip.start();
+                System.out.println("[SoundService] Bluetooth keep-alive active.");
+            } catch (Exception e) {
+                System.err.println("[SoundService] Could not start Bluetooth keep-alive: " + e.getMessage());
+            }
+        });
     }
 
     /**

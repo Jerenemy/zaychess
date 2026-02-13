@@ -317,7 +317,8 @@ public class MainFrame extends JFrame {
                 content.add(Box.createVerticalStrut(10));
 
                 // Slider configuration
-                JSlider slider = new JSlider(0, 10, 5);
+                int defaultDiff = controller.getEngineDifficulty();
+                JSlider slider = new JSlider(0, 10, defaultDiff);
                 slider.setMajorTickSpacing(1);
                 slider.setPaintTicks(true);
                 slider.setSnapToTicks(true);
@@ -344,7 +345,7 @@ public class MainFrame extends JFrame {
                     diffLabel.setText(text);
                 };
 
-                updateLabel.accept(5); // Initial label
+                updateLabel.accept(defaultDiff); // Initial label
                 slider.addChangeListener(e -> updateLabel.accept(slider.getValue()));
                 content.add(slider);
                 content.add(Box.createVerticalStrut(20));

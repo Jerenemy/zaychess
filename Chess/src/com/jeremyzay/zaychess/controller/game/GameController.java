@@ -71,7 +71,7 @@ public class GameController implements NetworkTransport.Listener {
 	// ──────────────────────────────────────────────────────────────────────────────
 
 	private EngineService engine = null;
-	private int engineDifficulty = 5; // Default Level 5
+	private int engineDifficulty = 3; // Default Level 5
 
 	/**
 	 * Create a controller with in-memory move history and no network.
@@ -170,8 +170,6 @@ public class GameController implements NetworkTransport.Listener {
 		} catch (Throwable e) {
 			if (e instanceof VirtualMachineError)
 				throw (VirtualMachineError) e;
-			System.err.println("[setEngine] FAILED to start engine: " + e.getMessage());
-			e.printStackTrace();
 			try {
 				newEngine.close();
 			} catch (Exception ignored) {

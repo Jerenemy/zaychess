@@ -144,7 +144,10 @@ public class MainFrame extends JFrame {
 
     public void startVsComputer() {
         resetGameSessionAsync(() -> {
-            showLoadingOverlay("Initializing AI...", null, () -> {
+            showLoadingOverlay("Initializing AI...", () -> {
+                // Cancel during engine init: stop any partially-started engine
+                controller.stopEngine();
+            }, () -> {
                 controller.setEngine();
             }, () -> {
                 if (controller.isUsingEngine()) {
@@ -175,10 +178,11 @@ public class MainFrame extends JFrame {
      * Shows a LoadingOverlay on the glass pane.
      * 
      * @param message    text to display
-     * @param onCancel   optional cancel action (null = no cancel button)
+     * @param onCancel   optional cancel action (null = no cancel button).
+     *                   When null, no Cancel button is shown.
      * @param bgTask     work to run on a background thread
      * @param onDone     callback on EDT after bgTask completes (not used if
-     *                   persistent)
+     *                   persistent). Suppressed if Cancel was clicked.
      * @param persistent if true, the overlay will NOT be auto-closed when bgTask
      *                   completes.
      *                   The caller is responsible for calling stop() on the
@@ -187,12 +191,23 @@ public class MainFrame extends JFrame {
     public void showLoadingOverlay(String message, Runnable onCancel, Runnable bgTask, Runnable onDone,
             boolean persistent) {
         final LoadingOverlay[] holder = { null };
-        holder[0] = new LoadingOverlay(message, e -> {
-            if (onCancel != null)
-                onCancel.run();
+        final java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean(
+                false);
+
+        // Only create a Cancel button when onCancel is provided
+        java.awt.event.ActionListener cancelAction = (onCancel != null) ? e -> {
+            cancelled.set(true);
+            onCancel.run();
             holder[0].stop();
+            // Restore blank glass pane
+            JPanel blank = new JPanel();
+            blank.setOpaque(false);
+            blank.setVisible(false);
+            setGlassPane(blank);
             showMenu();
-        });
+        } : null;
+
+        holder[0] = new LoadingOverlay(message, cancelAction);
 
         setGlassPane(holder[0]);
         getGlassPane().setVisible(true); // Force visibility
@@ -205,6 +220,8 @@ public class MainFrame extends JFrame {
             } finally {
                 if (!persistent) {
                     SwingUtilities.invokeLater(() -> {
+                        if (cancelled.get())
+                            return; // User already cancelled — don't run onDone
                         holder[0].stop();
                         // Restore blank glass pane
                         JPanel blank = new JPanel();
@@ -271,6 +288,7 @@ public class MainFrame extends JFrame {
                 cancelBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
                 cancelBtn.addActionListener(e -> {
                     hideOverlay();
+                    controller.stopEngine();
                     showMenu();
                 });
                 return cancelBtn;
@@ -351,6 +369,7 @@ public class MainFrame extends JFrame {
                 cancelBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
                 cancelBtn.addActionListener(e -> {
                     hideOverlay();
+                    controller.stopEngine();
                     showMenu();
                 });
                 return cancelBtn;
@@ -413,7 +432,9 @@ public class MainFrame extends JFrame {
                 aiBtn.addActionListener(e -> {
                     hideOverlay();
                     resetGameSessionAsync(() -> {
-                        showLoadingOverlay("Initializing AI...", null, () -> {
+                        showLoadingOverlay("Initializing AI...", () -> {
+                            controller.stopEngine();
+                        }, () -> {
                             controller.setEngine();
                         }, () -> {
                             if (controller.isUsingEngine()) {

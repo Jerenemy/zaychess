@@ -157,13 +157,25 @@ public class GameController implements NetworkTransport.Listener {
 	}
 
 	public void setEngine() {
-		this.engine = new SerendipityEngineService();
+		// Brief pause to let any previous engine thread fully exit
 		try {
-			this.engine.start();
-			this.engine.setDifficulty(engineDifficulty);
+			Thread.sleep(100);
+		} catch (InterruptedException ignored) {
+		}
+		SerendipityEngineService newEngine = new SerendipityEngineService();
+		try {
+			newEngine.start();
+			newEngine.setDifficulty(engineDifficulty);
+			this.engine = newEngine; // Only publish after fully initialized
 		} catch (Throwable e) {
 			if (e instanceof VirtualMachineError)
 				throw (VirtualMachineError) e;
+			System.err.println("[setEngine] FAILED to start engine: " + e.getMessage());
+			e.printStackTrace();
+			try {
+				newEngine.close();
+			} catch (Exception ignored) {
+			}
 			this.engine = null;
 			if (!suppressDialogs)
 				JOptionPane.showMessageDialog(null,

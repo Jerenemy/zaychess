@@ -102,8 +102,8 @@ sudo ufw allow 8080/tcp
 - [x] Sound effects
 - [x] Fix sound effects on bluetooth
 - [x] Make 2 new ai difficulties: 
-    - half passive, half aggressive
-    - 1/3 passive, 1/3 normal, 1/3 aggressive
+    - [x] half passive, half aggressive
+    - [x] 1/3 passive, 1/3 normal, 1/3 aggressive
 - [ ] add settings where you can toggle sound on and off (or just put as button on home screen)
 - [ ] add button to flip board in local mode
     - [ ] make sure it works with undo

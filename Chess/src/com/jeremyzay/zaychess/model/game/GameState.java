@@ -276,8 +276,25 @@ public class GameState {
     }
 
     public GameOverType getGameOverType() {
-        if (getKingOfColor(turn).isInCheck(this))
-            return GameOverType.CHECKMATE;
+        // 1. Check if any legal moves remain
+        boolean noMoves = true;
+        List<Piece> colorPieces = getPiecesOfColor(turn);
+        for (Piece piece : colorPieces) {
+            if (!MoveGenerator.generateLegalMoves(this, piece.getPos()).isEmpty()) {
+                noMoves = false;
+                break;
+            }
+        }
+
+        if (noMoves) {
+            if (getKingOfColor(turn).isInCheck(this))
+                return GameOverType.CHECKMATE;
+            return GameOverType.STALEMATE;
+        }
+
+        // if we are here, there ARE legal moves, so it can't be checkmate/stalemate.
+        // It must be a draw or resignation.
+
         if (resignedColor != null)
             return GameOverType.RESIGN;
         if (drawAgreed)
@@ -288,7 +305,9 @@ public class GameState {
             return GameOverType.THREEFOLD_REPETITION;
         if (isFiftyMoveRule())
             return GameOverType.FIFTY_MOVE_RULE;
-        return GameOverType.STALEMATE;
+
+        // Game is not over
+        return null;
     }
 
     /** @return list of all pieces of the given color */

@@ -6,7 +6,7 @@
 **Subtitle:** Chess, Refined.
 
 ## Promotional Text
-A tactile, beautifully minimalist chess experience for macOS. No accounts. No clutter. Just the game.
+A tactile, minimalist AI chess app for macOS.
 
 ## Description
 **Zaychess: A Love Letter to the Sixty-Four Squares.**

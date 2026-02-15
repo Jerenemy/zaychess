@@ -1,0 +1,7 @@
+*
+!.gitignore
+!/img/
+!/img/resize.py
+!pyproject.toml
+!/docs/
+!/docs/*

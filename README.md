@@ -109,6 +109,8 @@ sudo ufw allow 8080/tcp
     - [ ] make sure it works with undo
     - [ ] animate the flip
 - [ ] add sound elements to playing with home screen toy pieces
+- [ ] fix bug where you can throw the pieces off the screen on the home screen
+- [ ] fix bug of first sound taking a while to play
 - [ ] add ai arena mode to watch ai's of different difficulties play each other
 - [ ] Clock functionality
 - [ ] Theme selection UI

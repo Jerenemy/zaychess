@@ -166,7 +166,7 @@ echo "✅ Custom runtime created at: $CUSTOM_RUNTIME"
 jpackage \
   --type app-image \
   --name "$APPNAME" \
-  --app-version "1.1.6" \
+  --app-version "1.2.0" \
   --mac-app-category games \
   --input "$INPUT_DIR" \
   --main-jar "$MAIN_JAR" \

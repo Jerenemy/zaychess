@@ -1300,51 +1300,65 @@ public class GameController implements NetworkTransport.Listener {
 
 				try {
 					if (effectiveDiff == 0) {
-						// Level 0: Smart Passive: Engine chooses BEST move restricted to quiet moves
-						List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
-						List<String> quietUcis = allMoves.stream()
-								.filter(m -> m.getMoveType() != MoveType.CAPTURE
-										&& m.getMoveType() != MoveType.EN_PASSANT
-										&& !(m.getMoveType() == MoveType.PROMOTION
-												&& snap.getPieceAt(m.getToPos()) != null))
-								.map(this::encodeUci)
-								.toList();
-
+						// Level 0: Smart Passive: Try standard engine first
 						engine.newGame();
 						engine.setPositionFEN(NotationFEN.toFEN(snap));
+						uci = engine.bestMove(); // Get engine's first choice
 
-						if (!quietUcis.isEmpty()) {
-							// Ask engine for best QUIET move
-							uci = engine.bestMove(quietUcis);
-						}
+						// Check if the move is "Passive" (Quiet)
+						Move standardMove = decodeUci(uci);
+						boolean isQuiet = standardMove != null
+								&& standardMove.getMoveType() != MoveType.CAPTURE
+								&& standardMove.getMoveType() != MoveType.EN_PASSANT
+								&& !(standardMove.getMoveType() == MoveType.PROMOTION
+										&& snap.getPieceAt(standardMove.getToPos()) != null);
 
-						// If no quiet moves exist or engine failed to return one, fall back to normal
-						if (uci == null) {
-							uci = engine.bestMove();
+						if (!isQuiet) {
+							// Not passive, fall back to manual search of quiet moves
+							List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
+							List<String> quietUcis = allMoves.stream()
+									.filter(m -> m.getMoveType() != MoveType.CAPTURE
+											&& m.getMoveType() != MoveType.EN_PASSANT
+											&& !(m.getMoveType() == MoveType.PROMOTION
+													&& snap.getPieceAt(m.getToPos()) != null))
+									.map(this::encodeUci)
+									.toList();
+
+							if (!quietUcis.isEmpty()) {
+								uci = engine.bestMove(quietUcis);
+							}
+							// If no quiet moves exist, uci remains the standard bestMove
 						}
 
 					} else if (effectiveDiff == 1) {
-						// Level 1: Super Aggressive: Engine forces capture if available
-						List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
-						List<String> captureUcis = allMoves.stream()
-								.filter(m -> m.getMoveType() == MoveType.CAPTURE
-										|| m.getMoveType() == MoveType.EN_PASSANT
-										|| (m.getMoveType() == MoveType.PROMOTION
-												&& snap.getPieceAt(m.getToPos()) != null))
-								.map(this::encodeUci)
-								.toList();
-
+						// Level 1: Super Aggressive: Try standard engine first
 						engine.newGame();
 						engine.setPositionFEN(NotationFEN.toFEN(snap));
+						uci = engine.bestMove(); // Get engine's first choice
 
-						if (!captureUcis.isEmpty()) {
-							// Ask engine for best CAPTURE move
-							uci = engine.bestMove(captureUcis);
-						}
+						// Check if the move is "Aggressive" (Capture)
+						Move standardMove = decodeUci(uci);
+						boolean isCapture = standardMove != null
+								&& (standardMove.getMoveType() == MoveType.CAPTURE
+										|| standardMove.getMoveType() == MoveType.EN_PASSANT
+										|| (standardMove.getMoveType() == MoveType.PROMOTION
+												&& snap.getPieceAt(standardMove.getToPos()) != null));
 
-						// If no captures exist or engine failed, fall back to normal
-						if (uci == null) {
-							uci = engine.bestMove();
+						if (!isCapture) {
+							// Not aggressive, fall back to manual search of captures
+							List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
+							List<String> captureUcis = allMoves.stream()
+									.filter(m -> m.getMoveType() == MoveType.CAPTURE
+											|| m.getMoveType() == MoveType.EN_PASSANT
+											|| (m.getMoveType() == MoveType.PROMOTION
+													&& snap.getPieceAt(m.getToPos()) != null))
+									.map(this::encodeUci)
+									.toList();
+
+							if (!captureUcis.isEmpty()) {
+								uci = engine.bestMove(captureUcis);
+							}
+							// If no captures exist, uci remains the standard bestMove
 						}
 					} else {
 						// Standard Engine search for Levels 3 (Normal), 4, 5+

@@ -111,9 +111,29 @@ public final class UciClient implements AutoCloseable {
     }
 
     /** If you maintain your own board, set a custom FEN instead of startpos. */
-    public void setPositionFEN(String fen) throws IOException, TimeoutException {
-        this.startFEN = "fen " + fen;
+    public void setPositionFEN(String fen) throws IOException {
+        setPosition(fen, null);
+    }
+
+    public void setPosition(String fen, List<String> moves) throws IOException {
+        StringBuilder cmd = new StringBuilder("position ");
+        if (fen == null || fen.isBlank() || "startpos".equals(fen)) {
+            cmd.append("startpos");
+            this.startFEN = "startpos";
+        } else {
+            cmd.append("fen ").append(fen);
+            this.startFEN = "fen " + fen;
+        }
+
         moveHistory.clear();
+        if (moves != null && !moves.isEmpty()) {
+            cmd.append(" moves");
+            for (String m : moves) {
+                cmd.append(" ").append(m);
+                moveHistory.add(m); // Update internal move history
+            }
+        }
+        send(cmd.toString());
         pendingBestMove = null; // Clear any stale moves when changing position
     }
 
@@ -135,6 +155,11 @@ public final class UciClient implements AutoCloseable {
 
     /** Ask engine to think and return bestmove. Choose one time control method. */
     public BestMove goMovetime(int ms, long timeoutBufferMs) throws IOException, TimeoutException {
+        return goMovetimeWithMoves(null, ms, timeoutBufferMs);
+    }
+
+    public BestMove goMovetimeWithMoves(List<String> searchMoves, int ms, long timeoutBufferMs)
+            throws IOException, TimeoutException {
         positionSync();
         try {
             Thread.sleep(50);
@@ -143,7 +168,13 @@ public final class UciClient implements AutoCloseable {
         isReady(5000); // Sync before search
         drainLines();
         pendingBestMove = null; // Clear stale moves
-        send("go movetime " + ms);
+
+        String cmd = "go movetime " + ms;
+        if (searchMoves != null && !searchMoves.isEmpty()) {
+            cmd += " searchmoves " + String.join(" ", searchMoves);
+        }
+
+        send(cmd);
         try {
             return waitBestMove(ms + timeoutBufferMs);
         } catch (TimeoutException e) {
@@ -153,6 +184,11 @@ public final class UciClient implements AutoCloseable {
     }
 
     public BestMove goDepth(int depth, long timeoutMs) throws IOException, TimeoutException {
+        return goDepthWithMoves(null, depth, timeoutMs);
+    }
+
+    public BestMove goDepthWithMoves(List<String> searchMoves, int depth, long timeoutMs)
+            throws IOException, TimeoutException {
         positionSync();
         try {
             Thread.sleep(50);
@@ -161,7 +197,13 @@ public final class UciClient implements AutoCloseable {
         isReady(5000); // Sync before search
         drainLines();
         pendingBestMove = null; // Clear stale moves
-        send("go depth " + depth);
+
+        String cmd = "go depth " + depth;
+        if (searchMoves != null && !searchMoves.isEmpty()) {
+            cmd += " searchmoves " + String.join(" ", searchMoves);
+        }
+
+        send(cmd);
         try {
             return waitBestMove(timeoutMs);
         } catch (TimeoutException e) {
@@ -248,13 +290,16 @@ public final class UciClient implements AutoCloseable {
                 + formatClientState());
     }
 
-    private BestMove waitBestMove(long timeoutMs) throws TimeoutException {
+    public BestMove waitBestMove(long timeoutMs) throws TimeoutException {
         // Did we already see it during a prior isReady?
         if (pendingBestMove != null) {
             String line = pendingBestMove;
             pendingBestMove = null;
             return parseBestMove(line);
         }
+
+        Integer lastCp = null;
+        Integer lastMate = null;
 
         long end = System.currentTimeMillis() + timeoutMs;
         while (System.currentTimeMillis() < end && alive) {
@@ -267,8 +312,31 @@ public final class UciClient implements AutoCloseable {
             if (line == null)
                 continue;
 
+            // Parse score from info lines
+            if (line.startsWith("info ")) {
+                int cpIdx = line.indexOf("score cp ");
+                int mateIdx = line.indexOf("score mate ");
+                if (cpIdx >= 0) {
+                    try {
+                        String after = line.substring(cpIdx + "score cp ".length());
+                        String[] parts = after.split("\\s+", 2);
+                        lastCp = Integer.parseInt(parts[0]);
+                        lastMate = null; // cp overrides previous mate
+                    } catch (NumberFormatException ignored) {
+                    }
+                } else if (mateIdx >= 0) {
+                    try {
+                        String after = line.substring(mateIdx + "score mate ".length());
+                        String[] parts = after.split("\\s+", 2);
+                        lastMate = Integer.parseInt(parts[0]);
+                        lastCp = null; // mate overrides previous cp
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+            }
+
             if (line.startsWith("bestmove ")) {
-                return parseBestMove(line);
+                return parseBestMove(line, lastCp, lastMate);
             }
         }
         if (!alive) {
@@ -282,14 +350,20 @@ public final class UciClient implements AutoCloseable {
                 + formatClientState());
     }
 
-    private BestMove parseBestMove(String line) {
+    private BestMove parseBestMove(String line, Integer cp, Integer mate) {
         String found = null, ponder = null;
         String[] tok = line.split("\\s+");
         if (tok.length >= 2)
             found = tok[1];
         if (tok.length >= 4 && "ponder".equals(tok[2]))
             ponder = tok[3];
-        return new BestMove(found, ponder);
+        return new BestMove(found, ponder, cp, mate);
+    }
+
+    // Legacy support for internal parse calls if needed (though waitBestMove
+    // handles it)
+    private BestMove parseBestMove(String line) {
+        return parseBestMove(line, null, null);
     }
 
     private void send(String cmd) throws IOException {
@@ -334,7 +408,7 @@ public final class UciClient implements AutoCloseable {
         }
     }
 
-    public record BestMove(String move, String ponder) {
+    public record BestMove(String move, String ponder, Integer scoreCp, Integer scoreMate) {
     }
 
     private void recordOutput(String line) {

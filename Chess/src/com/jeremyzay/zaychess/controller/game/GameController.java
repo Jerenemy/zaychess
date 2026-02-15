@@ -1300,8 +1300,7 @@ public class GameController implements NetworkTransport.Listener {
 
 				try {
 					if (effectiveDiff == 0) {
-						// Level 0: Smart Passive: Engine chooses BEST move, but we enforce quiet moves
-						// only
+						// Level 0: Smart Passive: Engine chooses BEST move restricted to quiet moves
 						List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
 						List<String> quietUcis = allMoves.stream()
 								.filter(m -> m.getMoveType() != MoveType.CAPTURE
@@ -1313,15 +1312,17 @@ public class GameController implements NetworkTransport.Listener {
 
 						engine.newGame();
 						engine.setPositionFEN(NotationFEN.toFEN(snap));
-						uci = engine.bestMove();
 
 						if (!quietUcis.isEmpty()) {
-							if (!quietUcis.contains(uci)) {
-								System.out.println("AI Passive Override: Engine picked non-passive move " + uci
-										+ ", forcing random passive.");
-								uci = quietUcis.get(rand.nextInt(quietUcis.size()));
-							}
+							// Ask engine for best QUIET move
+							uci = engine.bestMove(quietUcis);
 						}
+
+						// If no quiet moves exist or engine failed to return one, fall back to normal
+						if (uci == null) {
+							uci = engine.bestMove();
+						}
+
 					} else if (effectiveDiff == 1) {
 						// Level 1: Super Aggressive: Engine forces capture if available
 						List<Move> allMoves = MoveGenerator.generateAllLegalMovesInTurn(snap);
@@ -1335,14 +1336,15 @@ public class GameController implements NetworkTransport.Listener {
 
 						engine.newGame();
 						engine.setPositionFEN(NotationFEN.toFEN(snap));
-						uci = engine.bestMove();
 
 						if (!captureUcis.isEmpty()) {
-							if (!captureUcis.contains(uci)) {
-								System.out.println("AI Aggressive Override: Engine picked non-aggressive move " + uci
-										+ ", forcing random capture.");
-								uci = captureUcis.get(rand.nextInt(captureUcis.size()));
-							}
+							// Ask engine for best CAPTURE move
+							uci = engine.bestMove(captureUcis);
+						}
+
+						// If no captures exist or engine failed, fall back to normal
+						if (uci == null) {
+							uci = engine.bestMove();
 						}
 					} else {
 						// Standard Engine search for Levels 3 (Normal), 4, 5+

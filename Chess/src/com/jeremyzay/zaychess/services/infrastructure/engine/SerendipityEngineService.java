@@ -18,6 +18,7 @@ public final class SerendipityEngineService implements EngineService {
     private final boolean inProcess;
     private UciClient eng;
     private int difficultyLevel = 5; // Default Level 5
+    private String currentFen; // Added back
 
     public SerendipityEngineService() {
         this.javaCmd = null;
@@ -55,6 +56,7 @@ public final class SerendipityEngineService implements EngineService {
 
     @Override
     public void newGame() throws Exception {
+        this.currentFen = "startpos";
         eng.newGame();
     }
 
@@ -82,8 +84,15 @@ public final class SerendipityEngineService implements EngineService {
         }
     }
 
+    // Note: setPositionFEN and pushUserMove are implemented below near currentFen
+    // declaration.
+    // Wait, let's keep them here to be clean and remove the bottom ones in next
+    // step?
+    // Or just implement them here and remove bottom ones.
+
     @Override
     public void setPositionFEN(String fen) throws Exception {
+        this.currentFen = fen;
         if (fen == null || fen.isBlank())
             return;
         eng.setPositionFEN(fen);
@@ -97,6 +106,7 @@ public final class SerendipityEngineService implements EngineService {
     @Override
     public String bestMoveMs(int movetimeMs) throws Exception {
         return eng.goMovetime(movetimeMs, /* buffer */ 5000).move(); // Increased buffer
+
     }
 
     @Override
@@ -106,32 +116,110 @@ public final class SerendipityEngineService implements EngineService {
 
     @Override
     public String bestMove(java.util.List<String> searchMoves) throws Exception {
-        // Map 1-10 to Nodes, Depth or Time
-        // Levels 0-3: handled by GameController
-        // Level 4: nodes 200 (Stable minimum)
-        // Level 5: nodes 1000
-        // Level 6: depth 2
-        // Level 7: depth 4
-        // Level 8: depth 10
-        // Level 9: Time 1000ms
-        // Level 10: Time 2000ms
-        if (difficultyLevel <= 4) {
-            // Use depth 1 for Level 4 (originally nodes 200, which is very shallow)
-            // Depth 1 is safer and likely stronger than 200 nodes.
+        // Serendipity engine does not support 'searchmoves' or 'MultiPV' reliably.
+        // We use a manual evaluation strategy:
+        // iterate through candidates, evaluate each at depth 1, pick the best score.
+
+        if (searchMoves == null || searchMoves.isEmpty()) {
             return eng.goDepth(1, 5000).move();
-        } else if (difficultyLevel == 5) {
-            return eng.goDepth(2, 5000).move();
-        } else if (difficultyLevel == 6) {
-            return eng.goDepth(2, 5000).move();
-        } else if (difficultyLevel == 7) {
-            return eng.goDepth(4, 10000).move();
-        } else if (difficultyLevel == 8) {
-            return eng.goDepth(10, 20000).move();
-        } else if (difficultyLevel == 9) {
-            return bestMoveMs(1000);
-        } else {
-            return bestMoveMs(2000);
         }
+
+        String bestMove = null;
+        // Integer.MIN_VALUE is -2^31. Centipawn scores are usually +/- 30000.
+        // Mate scores might be +/- 100000 or similar?
+        // Need to be careful with comparison.
+        // Let's rely on standard integer comparison, where mate > any cp.
+        // But we need to normalize mate/cp.
+        // Let's store score as integer, handling mate specially?
+        // Actually, let's just use int. Mate in 1 = 10000. Mate in 2 = 9999.
+        // Check UciClient score parsing.
+
+        int bestScore = Integer.MIN_VALUE;
+
+        // Iterate through candidates
+        // Limit to 50 candidates to prevent timeout if list is huge (unlikely for legal
+        // moves)
+        int count = 0;
+        for (String move : searchMoves) {
+            if (count++ > 50)
+                break;
+
+            // 1. Setup position: Current FEN + this move
+            try {
+                eng.setPosition(currentFen, java.util.Collections.singletonList(move));
+            } catch (Exception e) {
+                continue; // Skip invalid moves?
+            }
+
+            // 2. Eval at depth 2
+            // Depth 1 is too shallow and causes blunders. Depth 2 is much safer.
+            UciClient.BestMove result = eng.goDepth(2, 1000);
+
+            // 3. Get score
+            // The score returned is for the side to move AFTER 'move'.
+            // So if White plays 'move', it's Black's turn. Score is from Black's
+            // perspective.
+            // We want to maximize White's score.
+            // White's score = - (Black's score).
+            // So we negate the result.
+
+            int score = -999999; // Default bad score
+            if (result.scoreMate() != null) {
+                // Mate in N. Positive means Black mates White. Negative means White mates
+                // Black.
+                // We want to negate it.
+                // If result.scoreMate() == 1 (Black mates in 1), then for White it's -Mate.
+                // Value: - (100000 - 1) approx?
+                // Let's standard value: Mate > 20000.
+                int m = result.scoreMate();
+                if (m > 0) {
+                    // Black wins. Bad for White.
+                    // Score = -(30000 - m*10)
+                    score = -(30000 - m);
+                } else {
+                    // Black loses. Good for White.
+                    // Score = (30000 + m) (m is negative)
+                    score = 30000 + m; // e.g. 30000 + (-1) = 29999
+                }
+            } else if (result.scoreCp() != null) {
+                score = -result.scoreCp();
+            } else {
+                // No score available? fallback to 0 or skip?
+                // Maybe engine returned quickly without score?
+                // Treat as drawish?
+                score = 0;
+            }
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = move;
+            }
+
+            // System.out.println(
+            // "DEBUG Passive: Candidate " + move + " Score: " + score + " (Best so far: " +
+            // bestScore + ")");
+
+            // Check for immediate mate?
+            if (score > 29000)
+                break; // Found winning move
+        }
+
+        // System.out.println("DEBUG Passive: Final Selection: " + bestMove + " Score: "
+        // + bestScore);
+
+        // Reset position to currentFen (without moves) for safety/next call logic
+        if (currentFen != null) {
+            eng.setPositionFEN(currentFen);
+        } else {
+            eng.newGame(); // or startpos?
+        }
+
+        if (bestMove != null) {
+            return bestMove;
+        }
+
+        // Fallback
+        return eng.goDepth(1, 1000).move();
     }
 
     @Override
